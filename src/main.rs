@@ -23,13 +23,29 @@ pub struct Args {
     #[arg(long = "template-dir")]
     pub template_dir: Option<PathBuf>,
 
-    /// Template name to use (skips template selection prompt)
+    /// Template name to use
     #[arg(short, long)]
     pub template: Option<String>,
 
     /// Build zip files for all templates in the template directory
     #[arg(long = "build-zips")]
     pub build_zips: bool,
+
+    /// Project directory to create
+    #[arg(short, long)]
+    pub directory: Option<PathBuf>,
+
+    /// Languages to include (comma-separated: typescript,javascript,python)
+    #[arg(short, long, value_delimiter = ',')]
+    pub languages: Option<Vec<String>>,
+
+    /// Skip iii installation check
+    #[arg(long = "skip-iii")]
+    pub skip_iii: bool,
+
+    /// Auto-confirm all prompts (non-interactive mode)
+    #[arg(short, long)]
+    pub yes: bool,
 }
 
 #[tokio::main]

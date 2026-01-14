@@ -12,8 +12,12 @@ use std::path::PathBuf;
 pub async fn run(args: Args) -> Result<()> {
     cliclack::intro("motia")?;
 
-    // Step 1: Check iii installation
-    handle_iii_check().await?;
+    // Step 1: Check iii installation (skip if --skip-iii)
+    if !args.skip_iii {
+        handle_iii_check(&args).await?;
+    } else {
+        cliclack::log::info("Skipping iii check")?;
+    }
 
     // Step 2: Setup template fetcher
     let mut fetcher = setup_fetcher(&args)?;
@@ -31,10 +35,10 @@ pub async fn run(args: Args) -> Result<()> {
     }
 
     // Step 4: Select directory
-    let project_dir = select_directory()?;
+    let project_dir = select_directory(&args)?;
 
     // Step 5: Select languages
-    let selected_languages = select_languages(&manifest)?;
+    let selected_languages = select_languages(&manifest, &args)?;
 
     // Step 6: Check runtimes
     check_runtimes(&selected_languages)?;
@@ -56,7 +60,7 @@ pub async fn run(args: Args) -> Result<()> {
     Ok(())
 }
 
-async fn handle_iii_check() -> Result<()> {
+async fn handle_iii_check(args: &Args) -> Result<()> {
     let installed = iii::is_installed();
 
     if installed {
@@ -66,6 +70,12 @@ async fn handle_iii_check() -> Result<()> {
     }
 
     cliclack::log::warning("iii is not installed")?;
+
+    // In non-interactive mode, just skip
+    if args.yes {
+        cliclack::log::info("Continuing without iii (--yes mode)")?;
+        return Ok(());
+    }
 
     let action: &str = cliclack::select("What would you like to do?")
         .item("install", "Install iii automatically", "")
@@ -208,22 +218,33 @@ async fn select_template(
     Ok((name, manifest, language_files))
 }
 
-fn select_directory() -> Result<PathBuf> {
+fn select_directory(args: &Args) -> Result<PathBuf> {
     let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
-    let input: String = cliclack::input("Project directory")
-        .placeholder(".")
-        .default_input(".")
-        .interact()?;
-
-    let path = if input.is_empty() || input == "." {
-        current_dir
-    } else {
-        let p = PathBuf::from(&input);
-        if p.is_absolute() {
-            p
+    // Use --directory flag if provided
+    let path = if let Some(dir) = &args.directory {
+        let p = if dir.is_absolute() {
+            dir.clone()
         } else {
-            current_dir.join(p)
+            current_dir.join(dir)
+        };
+        cliclack::log::info(format!("Using directory: {}", p.display()))?;
+        p
+    } else {
+        let input: String = cliclack::input("Project directory")
+            .placeholder(".")
+            .default_input(".")
+            .interact()?;
+
+        if input.is_empty() || input == "." {
+            current_dir
+        } else {
+            let p = PathBuf::from(&input);
+            if p.is_absolute() {
+                p
+            } else {
+                current_dir.join(p)
+            }
         }
     };
 
@@ -240,9 +261,15 @@ fn select_directory() -> Result<PathBuf> {
             let count = entries.count();
             if count > 0 {
                 cliclack::log::warning(format!("Directory has {} existing items", count))?;
-                let confirm: bool = cliclack::confirm("Continue anyway?")
-                    .initial_value(true)
-                    .interact()?;
+
+                // Auto-confirm with --yes flag
+                let confirm = if args.yes {
+                    true
+                } else {
+                    cliclack::confirm("Continue anyway?")
+                        .initial_value(true)
+                        .interact()?
+                };
 
                 if !confirm {
                     anyhow::bail!("Setup cancelled.");
@@ -254,7 +281,17 @@ fn select_directory() -> Result<PathBuf> {
     Ok(path)
 }
 
-fn select_languages(manifest: &TemplateManifest) -> Result<Vec<check::Language>> {
+/// Parse language string to Language enum
+fn parse_language(s: &str) -> Option<check::Language> {
+    match s.to_lowercase().as_str() {
+        "typescript" | "ts" => Some(check::Language::TypeScript),
+        "javascript" | "js" => Some(check::Language::JavaScript),
+        "python" | "py" => Some(check::Language::Python),
+        _ => None,
+    }
+}
+
+fn select_languages(manifest: &TemplateManifest, args: &Args) -> Result<Vec<check::Language>> {
     let mut required_languages: Vec<check::Language> = Vec::new();
     let mut optional_languages: Vec<check::Language> = Vec::new();
 
@@ -290,16 +327,33 @@ fn select_languages(manifest: &TemplateManifest) -> Result<Vec<check::Language>>
 
     let mut selected_languages = required_languages.clone();
 
-    // If there are optional languages, let user select them
-    if !optional_languages.is_empty() {
-        let mut multi = cliclack::multiselect("Select additional languages (optional)");
-
-        for lang in &optional_languages {
-            multi = multi.item(lang.clone(), lang.display_name(), "");
+    // If --languages flag is provided, use those instead of prompting
+    if let Some(lang_args) = &args.languages {
+        for lang_str in lang_args {
+            if let Some(lang) = parse_language(lang_str) {
+                // Only add if it's optional and not already selected
+                if optional_languages.contains(&lang) && !selected_languages.contains(&lang) {
+                    selected_languages.push(lang);
+                }
+            } else {
+                cliclack::log::warning(format!("Unknown language: {}", lang_str))?;
+            }
         }
+    } else if !optional_languages.is_empty() {
+        // If there are optional languages and --yes flag, select all optional
+        if args.yes {
+            selected_languages.extend(optional_languages);
+        } else {
+            // Interactive selection
+            let mut multi = cliclack::multiselect("Select additional languages (optional)");
 
-        let selected: Vec<check::Language> = multi.required(false).interact()?;
-        selected_languages.extend(selected);
+            for lang in &optional_languages {
+                multi = multi.item(lang.clone(), lang.display_name(), "");
+            }
+
+            let selected: Vec<check::Language> = multi.required(false).interact()?;
+            selected_languages.extend(selected);
+        }
     }
 
     if selected_languages.is_empty() {
