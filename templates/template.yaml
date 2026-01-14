@@ -1,0 +1,3 @@
+# Root template manifest - lists available templates
+templates:
+  - quickstart

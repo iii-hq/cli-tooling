@@ -1,0 +1,31 @@
+# Quickstart template configuration
+name: quickstart
+description: A simple starter template to get up and running with Motia
+version: "0.1.0"
+
+# Languages that must be included (user cannot deselect)
+requires:
+  - typescript
+
+# Languages that can optionally be included
+optional:
+  - javascript
+  - python
+
+# Explicit file manifest for fetching
+files:
+  # Root config files
+  - .env
+  - motia.config.ts
+  - motia-workbench.json
+  - package.json
+  - requirements
+
+  # Step files - filtered by language selection
+  - src/start.step.ts
+  - src/start.step.tsx
+  - src/listener.step.ts
+  - src/typescript.step.ts
+  - src/javascript.step.js
+  - src/python_step.py
+  - src/tutorial.config.ts

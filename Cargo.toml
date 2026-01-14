@@ -1,0 +1,37 @@
+[package]
+name = "motia-cli"
+version = "0.1.0"
+edition = "2021"
+description = "CLI for scaffolding Motia projects with iii integration"
+authors = ["Motia Dev Team"]
+
+[dependencies]
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+
+# HTTP client for remote templates
+reqwest = { version = "0.12", features = ["json"] }
+
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Version comparison
+semver = "1"
+
+# Directory operations
+walkdir = "2"
+
+# Open URLs in browser
+open = "5"

@@ -1,0 +1,11 @@
+{
+  "title": "III",
+  "pages": [
+    "index",
+    "core-modules",
+    "core-modules-list",
+    "quickstart",
+    "api-reference",
+    "test"
+  ]
+}
