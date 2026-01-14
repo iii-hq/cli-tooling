@@ -19,10 +19,10 @@ pub async fn run(args: Args) -> Result<()> {
     handle_iii_check().await?;
 
     // Step 2: Setup template fetcher
-    let fetcher = setup_fetcher(&args);
+    let mut fetcher = setup_fetcher(&args);
     
     // Step 3: Select template (also returns merged language_files)
-    let (template_name, manifest, language_files) = select_template(&fetcher, args.template.as_deref()).await?;
+    let (template_name, manifest, language_files) = select_template(&mut fetcher, args.template.as_deref()).await?;
 
     // Check version compatibility
     if let Some(warning) = version::check_compatibility(CLI_VERSION, &manifest.version) {
@@ -44,7 +44,7 @@ pub async fn run(args: Args) -> Result<()> {
     check_runtimes(&selected_languages)?;
 
     // Step 7: Create project
-    create_project(&fetcher, &template_name, &manifest, &project_dir, &selected_languages, &language_files).await?;
+    create_project(&mut fetcher, &template_name, &manifest, &project_dir, &selected_languages, &language_files).await?;
 
     // Step 8: Show next steps
     print_next_steps(&project_dir, &selected_languages);
@@ -159,7 +159,7 @@ fn setup_fetcher(args: &Args) -> TemplateFetcher {
     TemplateFetcher::new(source)
 }
 
-async fn select_template(fetcher: &TemplateFetcher, specified_template: Option<&str>) -> Result<(String, TemplateManifest, LanguageFiles)> {
+async fn select_template(fetcher: &mut TemplateFetcher, specified_template: Option<&str>) -> Result<(String, TemplateManifest, LanguageFiles)> {
     println!("{}", "Loading templates...".dimmed());
 
     let root_manifest = fetcher.fetch_root_manifest().await?;
@@ -361,7 +361,7 @@ fn check_runtimes(languages: &[check::Language]) -> Result<()> {
 }
 
 async fn create_project(
-    fetcher: &TemplateFetcher,
+    fetcher: &mut TemplateFetcher,
     template_name: &str,
     manifest: &TemplateManifest,
     project_dir: &PathBuf,

@@ -6,7 +6,18 @@ templates:
 # Global language-specific file patterns
 # These determine which files are included based on selected languages
 # Patterns support: exact match, prefix* match, *suffix match
+# NOTE: Files not in any list are NOT copied by default
 language_files:
+  # Files always included regardless of language selection
+  common:
+    - ".env.*"
+    - ".gitignore"
+    - "README.md"
+    - "README*"
+    - "LICENSE"
+    - "LICENSE*"
+    - "motia-workbench.json"
+
   # Files only included when Python is selected
   python:
     - "*_step.py" # Python step files

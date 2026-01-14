@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 /// File patterns associated with each language
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LanguageFiles {
+    /// Files always included regardless of language selection
+    #[serde(default)]
+    pub common: Vec<String>,
+
     /// Files that require Python to be selected
     #[serde(default)]
     pub python: Vec<String>,
@@ -25,6 +29,7 @@ pub struct LanguageFiles {
 impl LanguageFiles {
     /// Merge another LanguageFiles into this one (other takes precedence for additions)
     pub fn merge(&mut self, other: &LanguageFiles) {
+        self.common.extend(other.common.iter().cloned());
         self.python.extend(other.python.iter().cloned());
         self.typescript.extend(other.typescript.iter().cloned());
         self.javascript.extend(other.javascript.iter().cloned());
@@ -48,10 +53,15 @@ impl LanguageFiles {
     }
 
     /// Determine which language(s) a file is associated with
-    /// Returns None if the file should always be included
+    /// Returns None if the file is not in any list (should be excluded)
+    /// Returns Some(FileLanguage::Common) if in the common list
     pub fn get_language_for_file(&self, file_path: &str) -> Option<FileLanguage> {
         let filename = file_path.rsplit('/').next().unwrap_or(file_path);
 
+        // Check common first - always included
+        if Self::matches_any(filename, &self.common) {
+            return Some(FileLanguage::Common);
+        }
         if Self::matches_any(filename, &self.python) {
             return Some(FileLanguage::Python);
         }
@@ -65,17 +75,18 @@ impl LanguageFiles {
             return Some(FileLanguage::Node);
         }
 
-        None // Not language-specific, always include
+        None // Not in any list, exclude by default
     }
 }
 
 /// Which language a file is associated with
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileLanguage {
+    Common,     // Always included
     Python,
     TypeScript,
     JavaScript,
-    Node, // Either JS or TS
+    Node,       // Either JS or TS
 }
 
 /// Root template manifest (templates/template.yaml)

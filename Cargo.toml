@@ -35,5 +35,8 @@ semver = "1"
 # Directory operations
 walkdir = "2"
 
+# Zip archive extraction
+zip = "2"
+
 # Open URLs in browser
 open = "5"

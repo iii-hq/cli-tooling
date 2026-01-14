@@ -9,7 +9,7 @@ use tokio::fs;
 
 /// Copy template files to the target directory, filtering by selected languages
 pub async fn copy_template(
-    fetcher: &TemplateFetcher,
+    fetcher: &mut TemplateFetcher,
     template_name: &str,
     manifest: &TemplateManifest,
     target_dir: &Path,
@@ -58,18 +58,15 @@ fn should_include_file(
     let has_python = selected_languages.contains(&Language::Python);
     let has_js_or_ts = has_typescript || has_javascript;
 
-    // Check if file matches any language-specific pattern from config
-    if let Some(file_lang) = language_files.get_language_for_file(file_path) {
-        return match file_lang {
-            FileLanguage::Python => has_python,
-            FileLanguage::TypeScript => has_typescript,
-            FileLanguage::JavaScript => has_javascript,
-            FileLanguage::Node => has_js_or_ts,
-        };
+    // Check if file matches any pattern from config
+    match language_files.get_language_for_file(file_path) {
+        Some(FileLanguage::Common) => true,
+        Some(FileLanguage::Python) => has_python,
+        Some(FileLanguage::TypeScript) => has_typescript,
+        Some(FileLanguage::JavaScript) => has_javascript,
+        Some(FileLanguage::Node) => has_js_or_ts,
+        None => false, // File not in any list, exclude
     }
-
-    // File not in any language-specific list, always include
-    true
 }
 
 /// Get the list of files that would be copied for given language selection
@@ -92,6 +89,11 @@ mod tests {
 
     fn test_language_files() -> LanguageFiles {
         LanguageFiles {
+            common: vec![
+                ".env".to_string(),
+                ".env.*".to_string(),
+                ".gitignore".to_string(),
+            ],
             python: vec![
                 "*_step.py".to_string(),
                 "requirements.txt".to_string(),
@@ -126,14 +128,33 @@ mod tests {
     }
 
     #[test]
-    fn test_should_include_config_files() {
+    fn test_common_files_always_included() {
+        let languages = vec![Language::TypeScript];
+        let lf = test_language_files();
+
+        // Common files are always included
+        assert!(should_include_file(".env", &languages, &lf));
+        assert!(should_include_file(".env.local", &languages, &lf));
+        assert!(should_include_file(".gitignore", &languages, &lf));
+    }
+
+    #[test]
+    fn test_unlisted_files_excluded() {
+        let languages = vec![Language::TypeScript];
+        let lf = test_language_files();
+
+        // Files not in any list should be excluded
+        assert!(!should_include_file("random.txt", &languages, &lf));
+        assert!(!should_include_file("unknown.file", &languages, &lf));
+    }
+
+    #[test]
+    fn test_should_include_node_files() {
         let languages = vec![Language::TypeScript];
         let lf = test_language_files();
 
         // package.json requires node (JS or TS)
         assert!(should_include_file("package.json", &languages, &lf));
-        // .env is not in any list, always included
-        assert!(should_include_file(".env", &languages, &lf));
         // motia.config.ts is TypeScript-filtered
         assert!(should_include_file("motia.config.ts", &languages, &lf));
     }

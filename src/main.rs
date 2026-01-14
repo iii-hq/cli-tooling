@@ -26,11 +26,20 @@ pub struct Args {
     /// Template name to use (skips template selection prompt)
     #[arg(short, long)]
     pub template: Option<String>,
+
+    /// Build zip files for all templates in the template directory
+    #[arg(long = "build-zips")]
+    pub build_zips: bool,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
+
+    // If building zips, do that and exit
+    if args.build_zips {
+        return templates::build_zips(&args.template_dir).await;
+    }
 
     // Run the TUI application
     tui::run(args).await
