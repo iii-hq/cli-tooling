@@ -7,9 +7,35 @@ use crate::templates::manifest::{LanguageFiles, TemplateManifest};
 use crate::{Args, CLI_VERSION};
 use anyhow::Result;
 use colored::Colorize;
+use inquire::ui::{Color, RenderConfig, StyleSheet, Styled};
 use inquire::{Confirm, MultiSelect, Select, Text};
 use std::fmt;
 use std::path::PathBuf;
+
+/// Create a custom render config for Motia's style
+fn motia_render_config<'a>() -> RenderConfig<'a> {
+    RenderConfig::empty()
+        // Prompt prefix: blue diamond
+        .with_prompt_prefix(Styled::new("◆").with_fg(Color::LightBlue))
+        // Answered prompt prefix: blue filled circle
+        .with_answered_prompt_prefix(Styled::new("●").with_fg(Color::LightBlue))
+        // Highlighted option: arrow indicator, no color on text
+        .with_highlighted_option_prefix(Styled::new("›").with_fg(Color::LightBlue))
+        // Selected option style: none (no highlighting)
+        .with_selected_option(Some(StyleSheet::empty()))
+        // Checkboxes for multi-select
+        .with_selected_checkbox(Styled::new("[●]").with_fg(Color::LightBlue))
+        .with_unselected_checkbox(Styled::new("[ ]"))
+        // Scroll indicators
+        .with_scroll_up_prefix(Styled::new("↑").with_fg(Color::DarkGrey))
+        .with_scroll_down_prefix(Styled::new("↓").with_fg(Color::DarkGrey))
+        // Help message style
+        .with_help_message(StyleSheet::empty().with_fg(Color::DarkGrey))
+        // Answer display
+        .with_answer(StyleSheet::empty().with_fg(Color::LightBlue))
+        // Canceled indicator
+        .with_canceled_prompt_indicator(Styled::new("canceled").with_fg(Color::DarkGrey))
+}
 
 /// Run the CLI with interactive prompts
 pub async fn run(args: Args) -> Result<()> {
@@ -27,9 +53,9 @@ pub async fn run(args: Args) -> Result<()> {
     // Check version compatibility
     if let Some(warning) = version::check_compatibility(CLI_VERSION, &manifest.version) {
         println!();
-        println!("{}", "⚠ Warning".yellow().bold());
+        println!("  {} {}", "△".yellow(), "Version warning".yellow());
         for line in warning.lines() {
-            println!("  {}", line.yellow());
+            println!("    {}", line.dimmed());
         }
         println!();
     }
@@ -54,9 +80,7 @@ pub async fn run(args: Args) -> Result<()> {
 
 fn print_header() {
     println!();
-    println!("{}", "╭─────────────────────────────────────╮".cyan());
-    println!("{}", "│        Motia CLI Setup              │".cyan());
-    println!("{}", "╰─────────────────────────────────────╯".cyan());
+    println!("  {}  {}", "◆".blue().bold(), "Motia".bold());
     println!();
 }
 
@@ -65,12 +89,12 @@ async fn handle_iii_check() -> Result<()> {
 
     if installed {
         let version = iii::get_version().unwrap_or_else(|| "unknown".to_string());
-        println!("{} iii is installed ({})", "✓".green(), version.dimmed());
+        println!("  {} iii installed {}", "●".blue(), format!("({})", version).dimmed());
         return Ok(());
     }
 
-    println!("{} iii is not installed", "!".yellow());
-    println!("  {}", "iii is required to run Motia applications.".dimmed());
+    println!("  {} iii not installed", "○".yellow());
+    println!("    {}", "iii is required to run Motia applications.".dimmed());
     println!();
 
     #[derive(Clone)]
@@ -93,20 +117,22 @@ async fn handle_iii_check() -> Result<()> {
     let options = vec![IiiAction::Install, IiiAction::OpenDocs, IiiAction::Skip];
 
     let action = Select::new("What would you like to do?", options)
-        .with_help_message("↑↓ to move, enter to select")
-        .prompt()?;
+        .with_render_config(motia_render_config())
+        .with_help_message("↑↓ navigate · enter select")
+        .prompt()?;;
 
     match action {
         IiiAction::Install => {
             // Show the command that will be executed
             println!();
-            println!("{}", "This will execute:".dimmed());
-            println!("  {}", iii::INSTALL_COMMAND.yellow());
+            println!("    {}", "This will execute:".dimmed());
+            println!("    {}", iii::INSTALL_COMMAND.dimmed());
             println!();
 
             let confirm = Confirm::new("Proceed with installation?")
+                .with_render_config(motia_render_config())
                 .with_default(true)
-                .prompt()?;
+                .prompt()?;;
 
             if confirm {
                 match iii::install().await {
@@ -115,12 +141,13 @@ async fn handle_iii_check() -> Result<()> {
                     }
                     Err(e) => {
                         println!();
-                        println!("{} {}", "Installation failed:".red(), e);
+                        println!("  {} {}", "✗".red(), format!("Installation failed: {}", e));
                         println!();
                         
                         let continue_anyway = Confirm::new("Continue without iii?")
+                            .with_render_config(motia_render_config())
                             .with_default(false)
-                            .prompt()?;
+                            .prompt()?;;
                         
                         if !continue_anyway {
                             anyhow::bail!("Setup cancelled.");
@@ -132,11 +159,11 @@ async fn handle_iii_check() -> Result<()> {
         IiiAction::OpenDocs => {
             iii::open_docs()?;
             println!();
-            println!("{}", "After installing iii, run this command again.".dimmed());
+            println!("  {}", "After installing iii, run this command again.".dimmed());
             std::process::exit(0);
         }
         IiiAction::Skip => {
-            println!("{}", "Continuing without iii...".dimmed());
+            println!("  {}", "Continuing without iii...".dimmed());
         }
     }
 
@@ -146,11 +173,11 @@ async fn handle_iii_check() -> Result<()> {
 fn setup_fetcher(args: &Args) -> TemplateFetcher {
     let source = match &args.template_dir {
         Some(path) => {
-            println!("{} Using local templates from {}", "→".blue(), path.display());
+            println!("  {} Local templates {}", "◇".blue(), format!("({})", path.display()).dimmed());
             TemplateSource::local(path.clone())
         }
         None => {
-            println!("{} Using remote templates", "→".blue());
+            println!("  {} Remote templates", "◇".blue());
             TemplateSource::default_remote()
         }
     };
@@ -160,7 +187,7 @@ fn setup_fetcher(args: &Args) -> TemplateFetcher {
 }
 
 async fn select_template(fetcher: &mut TemplateFetcher, specified_template: Option<&str>) -> Result<(String, TemplateManifest, LanguageFiles)> {
-    println!("{}", "Loading templates...".dimmed());
+    println!("  {}", "Loading templates...".dimmed());
 
     let root_manifest = fetcher.fetch_root_manifest().await?;
 
@@ -185,7 +212,7 @@ async fn select_template(fetcher: &mut TemplateFetcher, specified_template: Opti
 
         let manifest = fetcher.fetch_template_manifest(template_name).await?;
         let language_files = merge_language_files(&manifest);
-        println!("{} Using template: {} ({})", "✓".green(), manifest.name.bold(), manifest.description.dimmed());
+        println!("  {} Template: {} {}", "●".blue(), manifest.name.bold(), format!("— {}", manifest.description).dimmed());
         return Ok((template_name.to_string(), manifest, language_files));
     }
 
@@ -203,7 +230,7 @@ async fn select_template(fetcher: &mut TemplateFetcher, specified_template: Opti
     if templates.len() == 1 {
         let (name, manifest) = templates.into_iter().next().unwrap();
         let language_files = merge_language_files(&manifest);
-        println!("{} Using template: {} ({})", "✓".green(), manifest.name.bold(), manifest.description.dimmed());
+        println!("  {} Template: {} {}", "●".blue(), manifest.name.bold(), format!("— {}", manifest.description).dimmed());
         return Ok((name, manifest, language_files));
     }
 
@@ -225,11 +252,12 @@ async fn select_template(fetcher: &mut TemplateFetcher, specified_template: Opti
         .collect();
 
     let selected = Select::new("Select a template:", options)
-        .with_help_message("↑↓ to move, enter to select")
-        .prompt()?;
+        .with_render_config(motia_render_config())
+        .with_help_message("↑↓ navigate · enter select")
+        .prompt()?;;
 
     let language_files = merge_language_files(&selected.manifest);
-    println!("{} Template: {}", "✓".green(), selected.manifest.name.bold());
+    println!("  {} Template: {}", "●".blue(), selected.manifest.name.bold());
 
     Ok((selected.name, selected.manifest, language_files))
 }
@@ -238,9 +266,10 @@ fn select_directory() -> Result<PathBuf> {
     let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
     let input = Text::new("Project directory:")
+        .with_render_config(motia_render_config())
         .with_default(".")
         .with_help_message(&format!("Press enter for current directory ({})", current_dir.display()))
-        .prompt()?;
+        .prompt()?;;
 
     let path = if input.is_empty() || input == "." {
         current_dir
@@ -265,10 +294,11 @@ fn select_directory() -> Result<PathBuf> {
         if let Ok(entries) = std::fs::read_dir(&path) {
             let count = entries.count();
             if count > 0 {
-                println!("{} Directory exists with {} items (files may be overwritten)", "!".yellow(), count);
+                println!("  {} Directory has {} existing items", "△".yellow(), count);
                 let confirm = Confirm::new("Continue anyway?")
+                    .with_render_config(motia_render_config())
                     .with_default(true)
-                    .prompt()?;
+                    .prompt()?;;
                 
                 if !confirm {
                     anyhow::bail!("Setup cancelled.");
@@ -277,7 +307,7 @@ fn select_directory() -> Result<PathBuf> {
         }
     }
 
-    println!("{} Directory: {}", "✓".green(), path.display());
+    println!("  {} Directory: {}", "●".blue(), path.display());
 
     Ok(path)
 }
@@ -311,7 +341,7 @@ fn select_languages(manifest: &TemplateManifest) -> Result<Vec<check::Language>>
     // Show required languages as fixed (not selectable)
     if !required_languages.is_empty() {
         let required_names: Vec<&str> = required_languages.iter().map(|l| l.display_name()).collect();
-        println!("{} Required: {}", "→".blue(), required_names.join(", ").cyan());
+        println!("  {} Required: {}", "◇".dimmed(), required_names.join(", "));
     }
 
     // Start with required languages
@@ -322,7 +352,8 @@ fn select_languages(manifest: &TemplateManifest) -> Result<Vec<check::Language>>
         let options: Vec<check::Language> = optional_languages;
 
         let selected = MultiSelect::new("Select additional languages (optional):", options)
-            .with_help_message("↑↓ to move, space to toggle, enter to confirm")
+            .with_render_config(motia_render_config())
+            .with_help_message("↑↓ navigate · space toggle · enter confirm")
             .prompt()?;
 
         selected_languages.extend(selected);
@@ -333,27 +364,27 @@ fn select_languages(manifest: &TemplateManifest) -> Result<Vec<check::Language>>
     }
 
     let lang_names: Vec<&str> = selected_languages.iter().map(|l| l.display_name()).collect();
-    println!("{} Languages: {}", "✓".green(), lang_names.join(", "));
+    println!("  {} Languages: {}", "●".blue(), lang_names.join(", "));
 
     Ok(selected_languages)
 }
 
 fn check_runtimes(languages: &[check::Language]) -> Result<()> {
     println!();
-    println!("{}", "Checking runtimes...".dimmed());
+    println!("  {}", "Checking runtimes...".dimmed());
 
     match check::check_runtimes(languages) {
         Ok(runtimes) => {
             for runtime in runtimes {
                 let version = runtime.version.as_deref().unwrap_or("unknown");
-                println!("{} {} ({})", "✓".green(), runtime.name, version.dimmed());
+                println!("  {} {} {}", "●".blue(), runtime.name, format!("({})", version).dimmed());
             }
             Ok(())
         }
         Err(e) => {
             println!();
-            println!("{}", "Missing required runtimes:".red().bold());
-            println!("{}", e);
+            println!("  {} {}", "✗".red(), "Missing required runtimes:".red());
+            println!("    {}", e);
             println!();
             anyhow::bail!("Please install the missing runtimes and try again.");
         }
@@ -369,7 +400,7 @@ async fn create_project(
     language_files: &LanguageFiles,
 ) -> Result<()> {
     println!();
-    println!("{}", "Creating project...".cyan().bold());
+    println!("  {}", "Creating project...".dimmed());
 
     // Copy template files
     let copied_files = copier::copy_template(
@@ -382,14 +413,14 @@ async fn create_project(
     )
     .await?;
 
-    println!("  {} {} files copied", "→".blue(), copied_files.len());
+    println!("    {} {} files", "└".dimmed(), copied_files.len());
 
     // Generate iii config
     generator::write_config(project_dir, selected_languages).await?;
-    println!("  {} iii.yaml generated", "→".blue());
+    println!("    {} iii.yaml", "└".dimmed());
 
     println!();
-    println!("{}", "✓ Project created successfully!".green().bold());
+    println!("  {} {}", "◆".blue().bold(), "Project created".bold());
 
     Ok(())
 }
@@ -401,7 +432,7 @@ fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) {
     let has_python = languages.contains(&check::Language::Python);
 
     println!();
-    println!("{}", "Next steps:".cyan().bold());
+    println!("  {}", "Next steps".bold());
     println!();
 
     let mut step = 1;
@@ -409,30 +440,29 @@ fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) {
     // cd to directory if not current
     let current = std::env::current_dir().ok();
     if current.as_ref() != Some(project_dir) {
-        println!("  {}. {}", step, format!("cd {}", project_dir.display()).yellow());
+        println!("  {}  {}", format!("{}.", step).dimmed(), format!("cd {}", project_dir.display()));
         step += 1;
     }
 
     if has_js_ts {
-        println!("  {}. {}", step, "npm install".yellow());
+        println!("  {}  {}", format!("{}.", step).dimmed(), "npm install");
         step += 1;
     }
 
     if has_python {
-        println!("  {}. Set up a Python virtual environment and install dependencies", step);
-        println!("     {}", "Using uv (recommended):".dimmed());
-        println!("       {}", "uv venv && source .venv/bin/activate && uv pip install -r requirements".yellow());
-        println!("     {}", "Or using venv + pip:".dimmed());
-        println!("       {}", "python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements".yellow());
+        println!("  {}  Set up Python environment:", format!("{}.", step).dimmed());
+        println!("      {}", "uv venv && source .venv/bin/activate && uv pip install -r requirements".dimmed());
+        println!("      {}", "— or —".dimmed());
+        println!("      {}", "python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements".dimmed());
         step += 1;
     }
 
     if has_js_ts {
-        println!("  {}. {}", step, "npm run build".yellow());
+        println!("  {}  {}", format!("{}.", step).dimmed(), "npm run build");
         step += 1;
     }
 
-    println!("  {}. {}", step, "iii start".yellow());
+    println!("  {}  {}", format!("{}.", step).dimmed(), "iii start".blue());
 
     println!();
 }
