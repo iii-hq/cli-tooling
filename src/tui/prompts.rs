@@ -3,7 +3,7 @@
 use crate::config::generator;
 use crate::runtime::{check, iii};
 use crate::templates::{copier, fetcher::TemplateFetcher, fetcher::TemplateSource, version};
-use crate::templates::manifest::TemplateManifest;
+use crate::templates::manifest::{LanguageFiles, TemplateManifest};
 use crate::{Args, CLI_VERSION};
 use anyhow::Result;
 use colored::Colorize;
@@ -21,8 +21,8 @@ pub async fn run(args: Args) -> Result<()> {
     // Step 2: Setup template fetcher
     let fetcher = setup_fetcher(&args);
     
-    // Step 3: Select template
-    let (template_name, manifest) = select_template(&fetcher).await?;
+    // Step 3: Select template (also returns merged language_files)
+    let (template_name, manifest, language_files) = select_template(&fetcher, args.template.as_deref()).await?;
 
     // Check version compatibility
     if let Some(warning) = version::check_compatibility(CLI_VERSION, &manifest.version) {
@@ -44,7 +44,7 @@ pub async fn run(args: Args) -> Result<()> {
     check_runtimes(&selected_languages)?;
 
     // Step 7: Create project
-    create_project(&fetcher, &template_name, &manifest, &project_dir, &selected_languages).await?;
+    create_project(&fetcher, &template_name, &manifest, &project_dir, &selected_languages, &language_files).await?;
 
     // Step 8: Show next steps
     print_next_steps(&project_dir, &selected_languages);
@@ -159,10 +159,35 @@ fn setup_fetcher(args: &Args) -> TemplateFetcher {
     TemplateFetcher::new(source)
 }
 
-async fn select_template(fetcher: &TemplateFetcher) -> Result<(String, TemplateManifest)> {
+async fn select_template(fetcher: &TemplateFetcher, specified_template: Option<&str>) -> Result<(String, TemplateManifest, LanguageFiles)> {
     println!("{}", "Loading templates...".dimmed());
 
     let root_manifest = fetcher.fetch_root_manifest().await?;
+
+    // Helper to merge language files from root and template
+    let merge_language_files = |manifest: &TemplateManifest| -> LanguageFiles {
+        let mut merged = root_manifest.language_files.clone();
+        merged.merge(&manifest.language_files);
+        merged
+    };
+
+    // If a template was specified via --template flag, use it directly
+    if let Some(template_name) = specified_template {
+        // Check if the specified template exists in the root manifest
+        if !root_manifest.templates.contains(&template_name.to_string()) {
+            let available = root_manifest.templates.join(", ");
+            anyhow::bail!(
+                "Template '{}' not found. Available templates: {}",
+                template_name,
+                available
+            );
+        }
+
+        let manifest = fetcher.fetch_template_manifest(template_name).await?;
+        let language_files = merge_language_files(&manifest);
+        println!("{} Using template: {} ({})", "✓".green(), manifest.name.bold(), manifest.description.dimmed());
+        return Ok((template_name.to_string(), manifest, language_files));
+    }
 
     let mut templates: Vec<(String, TemplateManifest)> = Vec::new();
     for template_name in &root_manifest.templates {
@@ -177,8 +202,9 @@ async fn select_template(fetcher: &TemplateFetcher) -> Result<(String, TemplateM
     // If only one template, use it automatically
     if templates.len() == 1 {
         let (name, manifest) = templates.into_iter().next().unwrap();
+        let language_files = merge_language_files(&manifest);
         println!("{} Using template: {} ({})", "✓".green(), manifest.name.bold(), manifest.description.dimmed());
-        return Ok((name, manifest));
+        return Ok((name, manifest, language_files));
     }
 
     // Create display options
@@ -202,9 +228,10 @@ async fn select_template(fetcher: &TemplateFetcher) -> Result<(String, TemplateM
         .with_help_message("↑↓ to move, enter to select")
         .prompt()?;
 
+    let language_files = merge_language_files(&selected.manifest);
     println!("{} Template: {}", "✓".green(), selected.manifest.name.bold());
 
-    Ok((selected.name, selected.manifest))
+    Ok((selected.name, selected.manifest, language_files))
 }
 
 fn select_directory() -> Result<PathBuf> {
@@ -256,86 +283,59 @@ fn select_directory() -> Result<PathBuf> {
 }
 
 fn select_languages(manifest: &TemplateManifest) -> Result<Vec<check::Language>> {
-    // Build options with required languages pre-selected and disabled
-    struct LangOption {
-        language: check::Language,
-        required: bool,
+    // Separate required languages from optional ones
+    let mut required_languages: Vec<check::Language> = Vec::new();
+    let mut optional_languages: Vec<check::Language> = Vec::new();
+
+    // Categorize TypeScript
+    if manifest.is_required("typescript") {
+        required_languages.push(check::Language::TypeScript);
+    } else if manifest.is_optional("typescript") {
+        optional_languages.push(check::Language::TypeScript);
     }
 
-    impl fmt::Display for LangOption {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let suffix = if self.required { " (required)" } else { "" };
-            write!(f, "{}{}", self.language.display_name(), suffix)
-        }
+    // Categorize JavaScript
+    if manifest.is_required("javascript") {
+        required_languages.push(check::Language::JavaScript);
+    } else if manifest.is_optional("javascript") {
+        optional_languages.push(check::Language::JavaScript);
     }
 
-    let mut options: Vec<LangOption> = Vec::new();
-    let mut defaults: Vec<usize> = Vec::new();
-
-    // Add TypeScript
-    if manifest.is_required("typescript") || manifest.is_optional("typescript") {
-        let required = manifest.is_required("typescript");
-        if required {
-            defaults.push(options.len());
-        }
-        options.push(LangOption {
-            language: check::Language::TypeScript,
-            required,
-        });
+    // Categorize Python
+    if manifest.is_required("python") {
+        required_languages.push(check::Language::Python);
+    } else if manifest.is_optional("python") {
+        optional_languages.push(check::Language::Python);
     }
 
-    // Add JavaScript
-    if manifest.is_required("javascript") || manifest.is_optional("javascript") {
-        let required = manifest.is_required("javascript");
-        if required {
-            defaults.push(options.len());
-        }
-        options.push(LangOption {
-            language: check::Language::JavaScript,
-            required,
-        });
+    // Show required languages as fixed (not selectable)
+    if !required_languages.is_empty() {
+        let required_names: Vec<&str> = required_languages.iter().map(|l| l.display_name()).collect();
+        println!("{} Required: {}", "→".blue(), required_names.join(", ").cyan());
     }
 
-    // Add Python
-    if manifest.is_required("python") || manifest.is_optional("python") {
-        let required = manifest.is_required("python");
-        if required {
-            defaults.push(options.len());
-        }
-        options.push(LangOption {
-            language: check::Language::Python,
-            required,
-        });
+    // Start with required languages
+    let mut selected_languages = required_languages.clone();
+
+    // If there are optional languages, let user select them
+    if !optional_languages.is_empty() {
+        let options: Vec<check::Language> = optional_languages;
+
+        let selected = MultiSelect::new("Select additional languages (optional):", options)
+            .with_help_message("↑↓ to move, space to toggle, enter to confirm")
+            .prompt()?;
+
+        selected_languages.extend(selected);
     }
 
-    if options.is_empty() {
-        anyhow::bail!("Template has no language options defined.");
+    if selected_languages.is_empty() {
+        anyhow::bail!("No languages available for this template.");
     }
 
-    // Use MultiSelect for language selection
-    let selected = MultiSelect::new("Select languages to include:", options)
-        .with_default(&defaults)
-        .with_help_message("↑↓ to move, space to toggle, enter to confirm")
-        .prompt()?;
-
-    // Extract languages, ensuring required ones are included
-    let mut languages: Vec<check::Language> = selected.iter().map(|o| o.language).collect();
-
-    // Add back any required languages that might have been deselected
-    if manifest.is_required("typescript") && !languages.contains(&check::Language::TypeScript) {
-        languages.push(check::Language::TypeScript);
-    }
-    if manifest.is_required("javascript") && !languages.contains(&check::Language::JavaScript) {
-        languages.push(check::Language::JavaScript);
-    }
-    if manifest.is_required("python") && !languages.contains(&check::Language::Python) {
-        languages.push(check::Language::Python);
-    }
-
-    let lang_names: Vec<&str> = languages.iter().map(|l| l.display_name()).collect();
+    let lang_names: Vec<&str> = selected_languages.iter().map(|l| l.display_name()).collect();
     println!("{} Languages: {}", "✓".green(), lang_names.join(", "));
 
-    Ok(languages)
+    Ok(selected_languages)
 }
 
 fn check_runtimes(languages: &[check::Language]) -> Result<()> {
@@ -366,6 +366,7 @@ async fn create_project(
     manifest: &TemplateManifest,
     project_dir: &PathBuf,
     selected_languages: &[check::Language],
+    language_files: &LanguageFiles,
 ) -> Result<()> {
     println!();
     println!("{}", "Creating project...".cyan().bold());
@@ -377,6 +378,7 @@ async fn create_project(
         manifest,
         project_dir,
         selected_languages,
+        language_files,
     )
     .await?;
 
@@ -417,11 +419,11 @@ fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) {
     }
 
     if has_python {
-        println!("  {}. {}", step, "python3 -m venv .venv".yellow());
-        step += 1;
-        println!("  {}. {}", step, "source .venv/bin/activate".yellow());
-        step += 1;
-        println!("  {}. {}", step, "pip install -r requirements".yellow());
+        println!("  {}. Set up a Python virtual environment and install dependencies", step);
+        println!("     {}", "Using uv (recommended):".dimmed());
+        println!("       {}", "uv venv && source .venv/bin/activate && uv pip install -r requirements".yellow());
+        println!("     {}", "Or using venv + pip:".dimmed());
+        println!("       {}", "python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements".yellow());
         step += 1;
     }
 

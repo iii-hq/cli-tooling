@@ -22,6 +22,10 @@ pub struct Args {
     /// Local directory to use for templates instead of fetching from remote
     #[arg(long = "template-dir")]
     pub template_dir: Option<PathBuf>,
+
+    /// Template name to use (skips template selection prompt)
+    #[arg(short, long)]
+    pub template: Option<String>,
 }
 
 #[tokio::main]

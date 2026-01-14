@@ -1,3 +1,46 @@
-# Root template manifest - lists available templates
+# Root template manifest - lists available templates by folder name
 templates:
   - quickstart
+  - blank
+
+# Global language-specific file patterns
+# These determine which files are included based on selected languages
+# Patterns support: exact match, prefix* match, *suffix match
+language_files:
+  # Files only included when Python is selected
+  python:
+    - "*_step.py" # Python step files
+    - "requirements" # pip requirements (no extension)
+    - "requirements.txt" # pip requirements
+    - "pyproject.toml" # Modern Python project config
+    - "setup.py" # Setuptools config
+    - "setup.cfg" # Setuptools config
+    - "Pipfile" # Pipenv
+    - "Pipfile.lock" # Pipenv lock
+    - "poetry.lock" # Poetry lock
+    - ".python-version" # pyenv version
+
+  # Files only included when TypeScript is selected
+  typescript:
+    - "*.step.ts" # TypeScript step files
+    - "*.step.tsx" # TypeScript JSX step files
+    - "*.config.ts" # TypeScript config files
+    - "tsconfig.json" # TypeScript compiler config
+    - "tsconfig.*.json" # TypeScript config variants
+
+  # Files only included when JavaScript is selected
+  javascript:
+    - "*.step.js" # JavaScript step files
+    - "*.step.jsx" # JavaScript JSX step files
+    - "jsconfig.json" # JavaScript project config
+
+  # Files included when either JavaScript OR TypeScript is selected
+  node:
+    - "package.json" # npm package manifest
+    - "package-lock.json" # npm lock file
+    - "yarn.lock" # Yarn lock file
+    - "pnpm-lock.yaml" # pnpm lock file
+    - "bun.lockb" # Bun lock file
+    - ".npmrc" # npm config
+    - ".nvmrc" # nvm version
+    - ".node-version" # node version managers

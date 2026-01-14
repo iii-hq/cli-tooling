@@ -1,14 +1,11 @@
 # Quickstart template configuration
-name: Quickstart
-description: Learn the very basics of Motia. If you're just getting started then start here!
+name: Blank
+description: A blank template useful for starting a new Motia project
 version: "0.1.0"
-
-# Languages that must be included (user cannot deselect)
-requires:
-  - typescript
 
 # Languages that can optionally be included
 optional:
+  - typescript
   - javascript
   - python
 
@@ -22,10 +19,4 @@ files:
   - requirements.txt
 
   # Step files - filtered by language selection
-  - src/start.step.ts
-  - src/start.step.tsx
-  - src/listener.step.ts
   - src/typescript.step.ts
-  - src/javascript.step.js
-  - src/python_step.py
-  - src/tutorial.config.ts

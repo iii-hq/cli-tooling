@@ -1,6 +1,7 @@
 //! Runtime detection for Node.js, Bun, and Python
 
 use anyhow::Result;
+use std::fmt;
 use std::process::Command;
 
 /// Supported languages/runtimes
@@ -27,6 +28,12 @@ impl Language {
             Language::JavaScript => &[".step.js", ".step.jsx"],
             Language::Python => &["_step.py"],
         }
+    }
+}
+
+impl fmt::Display for Language {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.display_name())
     }
 }
 
