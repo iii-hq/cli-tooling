@@ -1,63 +1,33 @@
-//! Node-style CLI prompts using inquire
+//! Charm-style CLI prompts using cliclack
 
 use crate::config::generator;
 use crate::runtime::{check, iii};
-use crate::templates::{copier, fetcher::TemplateFetcher, fetcher::TemplateSource, version};
 use crate::templates::manifest::{LanguageFiles, TemplateManifest};
+use crate::templates::{copier, fetcher::TemplateFetcher, fetcher::TemplateSource, version};
 use crate::{Args, CLI_VERSION};
 use anyhow::Result;
-use colored::Colorize;
-use inquire::ui::{Color, RenderConfig, StyleSheet, Styled};
-use inquire::{Confirm, MultiSelect, Select, Text};
-use std::fmt;
 use std::path::PathBuf;
-
-/// Create a custom render config for Motia's style
-fn motia_render_config<'a>() -> RenderConfig<'a> {
-    RenderConfig::empty()
-        // Prompt prefix: blue diamond
-        .with_prompt_prefix(Styled::new("◆").with_fg(Color::LightBlue))
-        // Answered prompt prefix: blue filled circle
-        .with_answered_prompt_prefix(Styled::new("●").with_fg(Color::LightBlue))
-        // Highlighted option: arrow indicator, no color on text
-        .with_highlighted_option_prefix(Styled::new("›").with_fg(Color::LightBlue))
-        // Selected option style: none (no highlighting)
-        .with_selected_option(Some(StyleSheet::empty()))
-        // Checkboxes for multi-select
-        .with_selected_checkbox(Styled::new("[●]").with_fg(Color::LightBlue))
-        .with_unselected_checkbox(Styled::new("[ ]"))
-        // Scroll indicators
-        .with_scroll_up_prefix(Styled::new("↑").with_fg(Color::DarkGrey))
-        .with_scroll_down_prefix(Styled::new("↓").with_fg(Color::DarkGrey))
-        // Help message style
-        .with_help_message(StyleSheet::empty().with_fg(Color::DarkGrey))
-        // Answer display
-        .with_answer(StyleSheet::empty().with_fg(Color::LightBlue))
-        // Canceled indicator
-        .with_canceled_prompt_indicator(Styled::new("canceled").with_fg(Color::DarkGrey))
-}
 
 /// Run the CLI with interactive prompts
 pub async fn run(args: Args) -> Result<()> {
-    print_header();
+    cliclack::intro("motia")?;
 
     // Step 1: Check iii installation
     handle_iii_check().await?;
 
     // Step 2: Setup template fetcher
-    let mut fetcher = setup_fetcher(&args);
-    
+    let mut fetcher = setup_fetcher(&args)?;
+
     // Step 3: Select template (also returns merged language_files)
-    let (template_name, manifest, language_files) = select_template(&mut fetcher, args.template.as_deref()).await?;
+    let (template_name, manifest, language_files) =
+        select_template(&mut fetcher, args.template.as_deref()).await?;
 
     // Check version compatibility
     if let Some(warning) = version::check_compatibility(CLI_VERSION, &manifest.version) {
-        println!();
-        println!("  {} {}", "△".yellow(), "Version warning".yellow());
-        for line in warning.lines() {
-            println!("    {}", line.dimmed());
-        }
-        println!();
+        cliclack::log::warning(format!(
+            "Version warning: {}",
+            warning.lines().next().unwrap_or(&warning)
+        ))?;
     }
 
     // Step 4: Select directory
@@ -70,18 +40,20 @@ pub async fn run(args: Args) -> Result<()> {
     check_runtimes(&selected_languages)?;
 
     // Step 7: Create project
-    create_project(&mut fetcher, &template_name, &manifest, &project_dir, &selected_languages, &language_files).await?;
+    create_project(
+        &mut fetcher,
+        &template_name,
+        &manifest,
+        &project_dir,
+        &selected_languages,
+        &language_files,
+    )
+    .await?;
 
     // Step 8: Show next steps
-    print_next_steps(&project_dir, &selected_languages);
+    print_next_steps(&project_dir, &selected_languages)?;
 
     Ok(())
-}
-
-fn print_header() {
-    println!();
-    println!("  {}  {}", "◆".blue().bold(), "Motia".bold());
-    println!();
 }
 
 async fn handle_iii_check() -> Result<()> {
@@ -89,66 +61,42 @@ async fn handle_iii_check() -> Result<()> {
 
     if installed {
         let version = iii::get_version().unwrap_or_else(|| "unknown".to_string());
-        println!("  {} iii installed {}", "●".blue(), format!("({})", version).dimmed());
+        cliclack::log::success(format!("iii installed ({})", version))?;
         return Ok(());
     }
 
-    println!("  {} iii not installed", "○".yellow());
-    println!("    {}", "iii is required to run Motia applications.".dimmed());
-    println!();
+    cliclack::log::warning("iii is not installed")?;
 
-    #[derive(Clone)]
-    enum IiiAction {
-        Install,
-        OpenDocs,
-        Skip,
-    }
-
-    impl fmt::Display for IiiAction {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            match self {
-                IiiAction::Install => write!(f, "Install iii automatically"),
-                IiiAction::OpenDocs => write!(f, "Open documentation (https://iii.sh)"),
-                IiiAction::Skip => write!(f, "Skip and continue without iii"),
-            }
-        }
-    }
-
-    let options = vec![IiiAction::Install, IiiAction::OpenDocs, IiiAction::Skip];
-
-    let action = Select::new("What would you like to do?", options)
-        .with_render_config(motia_render_config())
-        .with_help_message("↑↓ navigate · enter select")
-        .prompt()?;;
+    let action: &str = cliclack::select("What would you like to do?")
+        .item("install", "Install iii automatically", "")
+        .item("docs", "Open documentation (https://iii.sh)", "")
+        .item("skip", "Skip and continue without iii", "")
+        .interact()?;
 
     match action {
-        IiiAction::Install => {
-            // Show the command that will be executed
-            println!();
-            println!("    {}", "This will execute:".dimmed());
-            println!("    {}", iii::INSTALL_COMMAND.dimmed());
-            println!();
+        "install" => {
+            cliclack::log::info(format!("This will execute: {}", iii::INSTALL_COMMAND))?;
 
-            let confirm = Confirm::new("Proceed with installation?")
-                .with_render_config(motia_render_config())
-                .with_default(true)
-                .prompt()?;;
+            let confirm: bool = cliclack::confirm("Proceed with installation?")
+                .initial_value(true)
+                .interact()?;
 
             if confirm {
+                let spinner = cliclack::spinner();
+                spinner.start("Installing iii...");
+
                 match iii::install().await {
                     Ok(_) => {
-                        println!();
+                        spinner.stop("iii installed successfully");
                     }
                     Err(e) => {
-                        println!();
-                        println!("  {} {}", "✗".red(), format!("Installation failed: {}", e));
-                        println!();
-                        
-                        let continue_anyway = Confirm::new("Continue without iii?")
-                            .with_render_config(motia_render_config())
-                            .with_default(false)
-                            .prompt()?;;
-                        
+                        spinner.stop("Installation failed");
+                        cliclack::log::error(format!("{}", e))?;
+
+                        let continue_anyway: bool = cliclack::confirm("Continue without iii?")
+                            .initial_value(false)
+                            .interact()?;
+
                         if !continue_anyway {
                             anyhow::bail!("Setup cancelled.");
                         }
@@ -156,38 +104,41 @@ async fn handle_iii_check() -> Result<()> {
                 }
             }
         }
-        IiiAction::OpenDocs => {
+        "docs" => {
             iii::open_docs()?;
-            println!();
-            println!("  {}", "After installing iii, run this command again.".dimmed());
+            cliclack::outro("After installing iii, run this command again.")?;
             std::process::exit(0);
         }
-        IiiAction::Skip => {
-            println!("  {}", "Continuing without iii...".dimmed());
+        "skip" => {
+            cliclack::log::info("Continuing without iii...")?;
         }
+        _ => {}
     }
 
     Ok(())
 }
 
-fn setup_fetcher(args: &Args) -> TemplateFetcher {
+fn setup_fetcher(args: &Args) -> Result<TemplateFetcher> {
     let source = match &args.template_dir {
         Some(path) => {
-            println!("  {} Local templates {}", "◇".blue(), format!("({})", path.display()).dimmed());
+            cliclack::log::info(format!("Using local templates from {}", path.display()))?;
             TemplateSource::local(path.clone())
         }
         None => {
-            println!("  {} Remote templates", "◇".blue());
+            cliclack::log::info("Using remote templates")?;
             TemplateSource::default_remote()
         }
     };
-    println!();
 
-    TemplateFetcher::new(source)
+    Ok(TemplateFetcher::new(source))
 }
 
-async fn select_template(fetcher: &mut TemplateFetcher, specified_template: Option<&str>) -> Result<(String, TemplateManifest, LanguageFiles)> {
-    println!("  {}", "Loading templates...".dimmed());
+async fn select_template(
+    fetcher: &mut TemplateFetcher,
+    specified_template: Option<&str>,
+) -> Result<(String, TemplateManifest, LanguageFiles)> {
+    let spinner = cliclack::spinner();
+    spinner.start("Loading templates...");
 
     let root_manifest = fetcher.fetch_root_manifest().await?;
 
@@ -200,8 +151,8 @@ async fn select_template(fetcher: &mut TemplateFetcher, specified_template: Opti
 
     // If a template was specified via --template flag, use it directly
     if let Some(template_name) = specified_template {
-        // Check if the specified template exists in the root manifest
         if !root_manifest.templates.contains(&template_name.to_string()) {
+            spinner.stop("Failed to load templates");
             let available = root_manifest.templates.join(", ");
             anyhow::bail!(
                 "Template '{}' not found. Available templates: {}",
@@ -212,7 +163,10 @@ async fn select_template(fetcher: &mut TemplateFetcher, specified_template: Opti
 
         let manifest = fetcher.fetch_template_manifest(template_name).await?;
         let language_files = merge_language_files(&manifest);
-        println!("  {} Template: {} {}", "●".blue(), manifest.name.bold(), format!("— {}", manifest.description).dimmed());
+        spinner.stop(format!(
+            "Template: {} — {}",
+            manifest.name, manifest.description
+        ));
         return Ok((template_name.to_string(), manifest, language_files));
     }
 
@@ -222,6 +176,8 @@ async fn select_template(fetcher: &mut TemplateFetcher, specified_template: Opti
         templates.push((template_name.clone(), manifest));
     }
 
+    spinner.stop("Templates loaded");
+
     if templates.is_empty() {
         anyhow::bail!("No templates found.");
     }
@@ -230,46 +186,35 @@ async fn select_template(fetcher: &mut TemplateFetcher, specified_template: Opti
     if templates.len() == 1 {
         let (name, manifest) = templates.into_iter().next().unwrap();
         let language_files = merge_language_files(&manifest);
-        println!("  {} Template: {} {}", "●".blue(), manifest.name.bold(), format!("— {}", manifest.description).dimmed());
+        cliclack::log::info(format!(
+            "Using template: {} — {}",
+            manifest.name, manifest.description
+        ))?;
         return Ok((name, manifest, language_files));
     }
 
-    // Create display options
-    struct TemplateOption {
-        name: String,
-        manifest: TemplateManifest,
+    // Build select prompt - use indices to avoid borrow issues
+    let mut select = cliclack::select("Select a template");
+    for (idx, (_, manifest)) in templates.iter().enumerate() {
+        select = select.item(idx, &manifest.name, &manifest.description);
     }
 
-    impl fmt::Display for TemplateOption {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "{} - {}", self.manifest.name, self.manifest.description)
-        }
-    }
+    let selected_idx: usize = select.interact()?;
 
-    let options: Vec<TemplateOption> = templates
-        .into_iter()
-        .map(|(name, manifest)| TemplateOption { name, manifest })
-        .collect();
+    let (name, manifest) = templates.into_iter().nth(selected_idx).unwrap();
 
-    let selected = Select::new("Select a template:", options)
-        .with_render_config(motia_render_config())
-        .with_help_message("↑↓ navigate · enter select")
-        .prompt()?;;
+    let language_files = merge_language_files(&manifest);
 
-    let language_files = merge_language_files(&selected.manifest);
-    println!("  {} Template: {}", "●".blue(), selected.manifest.name.bold());
-
-    Ok((selected.name, selected.manifest, language_files))
+    Ok((name, manifest, language_files))
 }
 
 fn select_directory() -> Result<PathBuf> {
     let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
-    let input = Text::new("Project directory:")
-        .with_render_config(motia_render_config())
-        .with_default(".")
-        .with_help_message(&format!("Press enter for current directory ({})", current_dir.display()))
-        .prompt()?;;
+    let input: String = cliclack::input("Project directory")
+        .placeholder(".")
+        .default_input(".")
+        .interact()?;
 
     let path = if input.is_empty() || input == "." {
         current_dir
@@ -294,12 +239,11 @@ fn select_directory() -> Result<PathBuf> {
         if let Ok(entries) = std::fs::read_dir(&path) {
             let count = entries.count();
             if count > 0 {
-                println!("  {} Directory has {} existing items", "△".yellow(), count);
-                let confirm = Confirm::new("Continue anyway?")
-                    .with_render_config(motia_render_config())
-                    .with_default(true)
-                    .prompt()?;;
-                
+                cliclack::log::warning(format!("Directory has {} existing items", count))?;
+                let confirm: bool = cliclack::confirm("Continue anyway?")
+                    .initial_value(true)
+                    .interact()?;
+
                 if !confirm {
                     anyhow::bail!("Setup cancelled.");
                 }
@@ -307,13 +251,10 @@ fn select_directory() -> Result<PathBuf> {
         }
     }
 
-    println!("  {} Directory: {}", "●".blue(), path.display());
-
     Ok(path)
 }
 
 fn select_languages(manifest: &TemplateManifest) -> Result<Vec<check::Language>> {
-    // Separate required languages from optional ones
     let mut required_languages: Vec<check::Language> = Vec::new();
     let mut optional_languages: Vec<check::Language> = Vec::new();
 
@@ -338,24 +279,26 @@ fn select_languages(manifest: &TemplateManifest) -> Result<Vec<check::Language>>
         optional_languages.push(check::Language::Python);
     }
 
-    // Show required languages as fixed (not selectable)
+    // Show required languages
     if !required_languages.is_empty() {
-        let required_names: Vec<&str> = required_languages.iter().map(|l| l.display_name()).collect();
-        println!("  {} Required: {}", "◇".dimmed(), required_names.join(", "));
+        let required_names: Vec<&str> = required_languages
+            .iter()
+            .map(|l| l.display_name())
+            .collect();
+        cliclack::log::info(format!("Required: {}", required_names.join(", ")))?;
     }
 
-    // Start with required languages
     let mut selected_languages = required_languages.clone();
 
     // If there are optional languages, let user select them
     if !optional_languages.is_empty() {
-        let options: Vec<check::Language> = optional_languages;
+        let mut multi = cliclack::multiselect("Select additional languages (optional)");
 
-        let selected = MultiSelect::new("Select additional languages (optional):", options)
-            .with_render_config(motia_render_config())
-            .with_help_message("↑↓ navigate · space toggle · enter confirm")
-            .prompt()?;
+        for lang in &optional_languages {
+            multi = multi.item(lang.clone(), lang.display_name(), "");
+        }
 
+        let selected: Vec<check::Language> = multi.required(false).interact()?;
         selected_languages.extend(selected);
     }
 
@@ -363,29 +306,37 @@ fn select_languages(manifest: &TemplateManifest) -> Result<Vec<check::Language>>
         anyhow::bail!("No languages available for this template.");
     }
 
-    let lang_names: Vec<&str> = selected_languages.iter().map(|l| l.display_name()).collect();
-    println!("  {} Languages: {}", "●".blue(), lang_names.join(", "));
+    let lang_names: Vec<&str> = selected_languages
+        .iter()
+        .map(|l| l.display_name())
+        .collect();
+    cliclack::log::success(format!("Languages: {}", lang_names.join(", ")))?;
 
     Ok(selected_languages)
 }
 
 fn check_runtimes(languages: &[check::Language]) -> Result<()> {
-    println!();
-    println!("  {}", "Checking runtimes...".dimmed());
+    let spinner = cliclack::spinner();
+    spinner.start("Checking runtimes...");
 
     match check::check_runtimes(languages) {
         Ok(runtimes) => {
-            for runtime in runtimes {
-                let version = runtime.version.as_deref().unwrap_or("unknown");
-                println!("  {} {} {}", "●".blue(), runtime.name, format!("({})", version).dimmed());
-            }
+            let runtime_info: Vec<String> = runtimes
+                .iter()
+                .map(|r| {
+                    format!(
+                        "{} ({})",
+                        r.name,
+                        r.version.as_deref().unwrap_or("unknown")
+                    )
+                })
+                .collect();
+            spinner.stop(format!("Runtimes: {}", runtime_info.join(", ")));
             Ok(())
         }
         Err(e) => {
-            println!();
-            println!("  {} {}", "✗".red(), "Missing required runtimes:".red());
-            println!("    {}", e);
-            println!();
+            spinner.stop("Missing runtimes");
+            cliclack::log::error(format!("{}", e))?;
             anyhow::bail!("Please install the missing runtimes and try again.");
         }
     }
@@ -399,8 +350,8 @@ async fn create_project(
     selected_languages: &[check::Language],
     language_files: &LanguageFiles,
 ) -> Result<()> {
-    println!();
-    println!("  {}", "Creating project...".dimmed());
+    let spinner = cliclack::spinner();
+    spinner.start("Creating project...");
 
     // Copy template files
     let copied_files = copier::copy_template(
@@ -413,26 +364,26 @@ async fn create_project(
     )
     .await?;
 
-    println!("    {} {} files", "└".dimmed(), copied_files.len());
-
     // Generate iii config
     generator::write_config(project_dir, selected_languages).await?;
-    println!("    {} iii.yaml", "└".dimmed());
 
-    println!();
-    println!("  {} {}", "◆".blue().bold(), "Project created".bold());
+    spinner.stop(format!(
+        "Created {} files in {}",
+        copied_files.len() + 1,
+        project_dir.display()
+    ));
 
     Ok(())
 }
 
-fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) {
+fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) -> Result<()> {
     let has_js_ts = languages
         .iter()
         .any(|l| matches!(l, check::Language::TypeScript | check::Language::JavaScript));
     let has_python = languages.contains(&check::Language::Python);
 
     println!();
-    println!("  {}", "Next steps".bold());
+    println!("  Next steps");
     println!();
 
     let mut step = 1;
@@ -440,29 +391,31 @@ fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) {
     // cd to directory if not current
     let current = std::env::current_dir().ok();
     if current.as_ref() != Some(project_dir) {
-        println!("  {}  {}", format!("{}.", step).dimmed(), format!("cd {}", project_dir.display()));
+        println!("  {}.  cd {}", step, project_dir.display());
         step += 1;
     }
 
     if has_js_ts {
-        println!("  {}  {}", format!("{}.", step).dimmed(), "npm install");
+        println!("  {}.  npm install", step);
         step += 1;
     }
 
     if has_python {
-        println!("  {}  Set up Python environment:", format!("{}.", step).dimmed());
-        println!("      {}", "uv venv && source .venv/bin/activate && uv pip install -r requirements".dimmed());
-        println!("      {}", "— or —".dimmed());
-        println!("      {}", "python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements".dimmed());
+        println!("  {}.  Set up Python environment:", step);
+        println!("      uv venv && source .venv/bin/activate && uv pip install -r requirements");
+        println!("      — or —");
+        println!("      python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements");
         step += 1;
     }
 
     if has_js_ts {
-        println!("  {}  {}", format!("{}.", step).dimmed(), "npm run build");
+        println!("  {}.  npm run build", step);
         step += 1;
     }
 
-    println!("  {}  {}", format!("{}.", step).dimmed(), "iii start".blue());
+    println!("  {}.  iii start", step);
 
-    println!();
+    cliclack::outro("Happy coding!")?;
+
+    Ok(())
 }

@@ -6,8 +6,8 @@ description = "CLI for scaffolding Motia projects with iii integration"
 authors = ["Motia Dev Team"]
 
 [dependencies]
-# Interactive prompts (node-style)
-inquire = "0.7"
+# Interactive prompts (Charm-style)
+cliclack = "0.3"
 
 # Terminal styling
 colored = "2"
