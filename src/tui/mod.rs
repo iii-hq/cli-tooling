@@ -1,4 +1,5 @@
-mod app;
-mod screens;
+//! CLI prompts using inquire (node-style inline prompts)
 
-pub use app::run;
+mod prompts;
+
+pub use prompts::run;
