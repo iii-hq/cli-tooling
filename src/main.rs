@@ -50,6 +50,20 @@ pub struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Ensure terminal cursor is restored on panic
+    let default_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let _ = console::Term::stderr().show_cursor();
+        default_panic(info);
+    }));
+
+    // Handle Ctrl+C gracefully
+    ctrlc::set_handler(move || {
+        let _ = console::Term::stderr().show_cursor();
+        std::process::exit(130);
+    })
+    .ok();
+
     let args = Args::parse();
 
     // If building zips, do that and exit
@@ -58,5 +72,10 @@ async fn main() -> Result<()> {
     }
 
     // Run the TUI application
-    tui::run(args).await
+    let result = tui::run(args).await;
+
+    // Ensure cursor is visible on normal exit
+    let _ = console::Term::stderr().show_cursor();
+
+    result
 }

@@ -8,6 +8,10 @@ authors = ["Motia Dev Team"]
 [dependencies]
 # Interactive prompts (Charm-style)
 cliclack = "0.3"
+console = "0.15"
+
+# Signal handling for clean exit
+ctrlc = "3"
 
 # Terminal styling
 colored = "2"
