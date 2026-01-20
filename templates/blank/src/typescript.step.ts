@@ -1,7 +1,7 @@
 // This is an example of a TypeScript step.
 // Learn more about producing steps in TypeScript, JavaScript,
 // and Python at: https://www.motia.dev/docs/concepts/steps
-import type { EventConfig, Handlers } from "motia";
+import type { EventConfig, Handlers } from "@iii-dev/motia";
 import * as z from "zod";
 
 export const config: EventConfig = {
@@ -18,7 +18,7 @@ export const config: EventConfig = {
 
 export const handler: Handlers["HelloFromTypeScript"] = async (
   payload,
-  { emit, logger, state } // context object
+  { emit, logger, state }, // context object
 ) => {
   logger.info("Hello from TypeScript!");
   emit({ topic: "hello.response.typescript", data: { extra: "ts" } });

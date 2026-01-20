@@ -1,23 +1,28 @@
-import type { ApiRouteConfig, Handlers } from "motia";
+import type { Handlers, StepConfig } from "motia";
+import { z } from "zod";
 
-export const config: ApiRouteConfig = {
-  // Required fields for API routes
-  type: "api",
+export const config = {
+  // Required fields
   name: "StartTheTutorial",
-  path: "/hello",
-  method: "GET",
+  description: "Start the tutorial flow via API",
+  triggers: [
+    {
+      type: "api",
+      method: "GET",
+      path: "/hello",
+    },
+  ],
   emits: ["hello"],
 
-  // Some optional fields. Full list here: https://www.motia.dev/docs/api-reference#apirouteconfig
-  description: "",
+  // Some optional fields. Full list here: https://www.motia.dev/docs/api-reference
   flows: ["hello"],
   virtualEmits: ["notification.sent"], // These are visual indicators in Workbench only.
   virtualSubscribes: [], // They don't have any impact on code execution.
-};
+} satisfies StepConfig;
 
-export const handler: Handlers["StartTheTutorial"] = async (
-  req,
-  { emit, logger, state }
+export const handler: Handlers<typeof config> = async (
+  input,
+  { emit, logger, state, trigger },
 ) => {
   emit({
     topic: "hello",

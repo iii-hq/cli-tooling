@@ -5,15 +5,19 @@ class Input(BaseModel):
     extra: str
 
 config = {
-    "type": "event",
     "name": "HelloFromPython",
-    "subscribes": ["hello"],
-    "input": Input.model_json_schema(),
+    "description": "Say hello from Python!",
+    "triggers": [
+        {
+            "type": "event",
+            "topic": "hello",
+            "input": Input.model_json_schema(),
+        },
+    ],
     "emits": ["hello.response.python"],
 
-    # Some optional fields. Full list here: https://www.motia.dev/docs/api-reference#eventconfig
+    # Some optional fields. Full list here: https://www.motia.dev/docs/api-reference
     "flows": ["hello"],
-    "description": "Say hello from Python!",
     "virtualEmits": [],
     "virtualSubscribes": [],
 }
