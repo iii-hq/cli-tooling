@@ -48,9 +48,13 @@ templates/
 
 ### Root `template.yaml`
 
+The root `template.yaml` is necessary for avoiding expensive directory traversal/retrieval with github API.
+This file lets us just use raw.githubusercontent.com. So if your template isn't defined in the `templates` section
+of this file it won't be recognized.
+
 ```yaml
 templates:
-  - quickstart
+  - quickstart # names correspond to directory/zip names for the template
   - blank
 
 language_files:

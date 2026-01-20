@@ -442,6 +442,8 @@ fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) -> Res
 
     let mut step = 1;
 
+    println!("  {}.  Start iii if it's not already running", step);
+    step +=1;
     // cd to directory if not current
     let current = std::env::current_dir().ok();
     if current.as_ref() != Some(project_dir) {
@@ -450,24 +452,23 @@ fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) -> Res
     }
 
     if has_js_ts {
-        println!("  {}.  npm install", step);
+        println!("  {}.  npm install @iii-dev/motia", step);
         step += 1;
     }
 
     if has_python {
         println!("  {}.  Set up Python environment:", step);
-        println!("      uv venv && source .venv/bin/activate && uv pip install -r requirements");
+        println!("      uv venv && uv pip install -r requirements.txt");
         println!("      — or —");
-        println!("      python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements");
+        println!("      python3 -m venv .venv && .venv/bin/pip install -r requirements.txt");
         step += 1;
     }
 
     if has_js_ts {
-        println!("  {}.  npm run build", step);
+        println!("  {}.  npm dev", step);
         step += 1;
     }
 
-    println!("  {}.  iii start", step);
 
     cliclack::outro("Happy coding!")?;
 
