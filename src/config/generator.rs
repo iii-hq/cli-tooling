@@ -30,11 +30,13 @@ pub fn generate_config(
 
     config.push_str("modules:\n");
 
+    // TODO: Templatize this, this code is not sustainable
     // ExecModule for running the bundled Motia application
     config.push_str("  # Main application execution\n");
     config.push_str("  - class: modules::shell::ExecModule\n");
     config.push_str("    config:\n");
     config.push_str("      exec:\n");
+    // TODO: Autodetect runtimes (node, python, etc.)
     config.push_str("        - bun run --enable-source-maps index-production.js\n");
 
     // Environment paths for runtime resolution
@@ -152,6 +154,7 @@ mod tests {
 
         let config = generate_config(&dir, &languages);
 
+        // TODO: Port numbers should come from declarations above
         assert!(config.contains("port: 31112"));
         assert!(config.contains("port: 31113"));
     }
