@@ -79,7 +79,11 @@ async fn handle_iii_check(args: &Args) -> Result<()> {
 
     let action: &str = cliclack::select("What would you like to do?")
         .item("install", "Install iii automatically", "")
-        .item("docs", "Open documentation (https://iii.dev)", "")
+        .item(
+            "docs",
+            format!("Open documentation ({})", iii::DOCS_URL),
+            "",
+        )
         .item("skip", "Skip and continue without iii", "")
         .interact()?;
 
@@ -112,6 +116,11 @@ async fn handle_iii_check(args: &Args) -> Result<()> {
                         }
                     }
                 }
+            } else {
+                cliclack::log::info(format!(
+                    "Continuing without iii. Refer to the docs for installation instructions: ({})",
+                    iii::DOCS_URL
+                ))?;
             }
         }
         "docs" => {
@@ -120,7 +129,10 @@ async fn handle_iii_check(args: &Args) -> Result<()> {
             std::process::exit(0);
         }
         "skip" => {
-            cliclack::log::info("Continuing without iii...")?;
+            cliclack::log::info(format!(
+                "Continuing without iii. Refer to the docs for installation instructions: ({})",
+                iii::DOCS_URL
+            ))?;
         }
         _ => {}
     }

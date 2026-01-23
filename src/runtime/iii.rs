@@ -50,7 +50,7 @@ pub fn get_version() -> Option<String> {
 pub async fn install() -> Result<()> {
     let cmd = install_command();
     println!();
-    println!("{}", "Installing iii...".cyan().bold());
+    // println!("{}", "Installing iii...".cyan().bold());
     println!("{} {}", "Running:".dimmed(), cmd.yellow());
     println!();
 
