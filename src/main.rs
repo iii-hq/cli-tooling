@@ -45,7 +45,7 @@ pub struct CreateArgs {
     #[arg(short, long)]
     pub directory: Option<PathBuf>,
 
-    /// Languages to include (comma-separated: typescript,javascript,python)
+    /// Languages to include (comma-separated: ts,js,py or typescript,javascript,python)
     #[arg(short, long, value_delimiter = ',')]
     pub languages: Option<Vec<String>>,
 
