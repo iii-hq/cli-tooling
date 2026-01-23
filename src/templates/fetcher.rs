@@ -26,22 +26,15 @@ pub enum TemplateSource {
 impl TemplateSource {
     /// Environment variable name for overriding the template URL
     pub const TEMPLATE_URL_ENV: &'static str = "MOTIA_TEMPLATE_URL";
-    
+
     /// Environment variable name for GitHub token (works with private repos)
     pub const GITHUB_TOKEN_ENV: &'static str = "GITHUB_TOKEN";
 
     pub fn default_remote() -> Result<Self> {
         let url_str = std::env::var(Self::TEMPLATE_URL_ENV)
             .unwrap_or_else(|_| crate::DEFAULT_TEMPLATE_URL.to_string());
-        let url = Url::parse(&url_str)
-            .with_context(|| format!("Invalid template URL: {}", url_str))?;
-        Ok(Self::Remote(url))
-    }
-
-    /// Create a remote template source from a URL string
-    pub fn remote(url_str: &str) -> Result<Self> {
-        let url = Url::parse(url_str)
-            .with_context(|| format!("Invalid template URL: {}", url_str))?;
+        let url =
+            Url::parse(&url_str).with_context(|| format!("Invalid template URL: {}", url_str))?;
         Ok(Self::Remote(url))
     }
 
@@ -71,7 +64,7 @@ pub struct TemplateFetcher {
 impl TemplateFetcher {
     pub fn new(source: TemplateSource) -> Self {
         let github_token = std::env::var(TemplateSource::GITHUB_TOKEN_ENV).ok();
-        
+
         Self {
             source,
             client: reqwest::Client::builder()
@@ -86,13 +79,13 @@ impl TemplateFetcher {
     /// Build a request with optional auth header
     fn build_request(&self, url: Url) -> reqwest::RequestBuilder {
         let mut request = self.client.get(url);
-        
+
         if let Some(token) = &self.github_token {
             request = request
                 .header("Authorization", format!("Bearer {}", token))
                 .header("Accept", "application/vnd.github.raw+json");
         }
-        
+
         request
     }
 
@@ -116,7 +109,9 @@ impl TemplateFetcher {
                     .build_request(url.clone())
                     .send()
                     .await
-                    .with_context(|| format!("Failed to fetch root template manifest from {}", url))?;
+                    .with_context(|| {
+                        format!("Failed to fetch root template manifest from {}", url)
+                    })?;
 
                 if !response.status().is_success() {
                     anyhow::bail!(
@@ -154,8 +149,8 @@ impl TemplateFetcher {
         let mut zip_buffer = Vec::new();
         {
             let mut zip = ZipWriter::new(Cursor::new(&mut zip_buffer));
-            let options = SimpleFileOptions::default()
-                .compression_method(zip::CompressionMethod::Deflated);
+            let options =
+                SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
             // Always include template.yaml first
             let template_yaml_path = format!("{}/template.yaml", template_name);
@@ -188,13 +183,14 @@ impl TemplateFetcher {
     }
 
     /// Extract a zip into the template cache
-    fn extract_zip_to_cache(
-        zip_bytes: &[u8],
-        template_name: &str,
-    ) -> Result<TemplateCache> {
+    fn extract_zip_to_cache(zip_bytes: &[u8], template_name: &str) -> Result<TemplateCache> {
         let cursor = Cursor::new(zip_bytes);
-        let mut archive = ZipArchive::new(cursor)
-            .with_context(|| format!("Failed to read zip archive for template '{}'", template_name))?;
+        let mut archive = ZipArchive::new(cursor).with_context(|| {
+            format!(
+                "Failed to read zip archive for template '{}'",
+                template_name
+            )
+        })?;
 
         let mut files: HashMap<String, Vec<u8>> = HashMap::new();
         let mut manifest: Option<TemplateManifest> = None;
@@ -226,10 +222,9 @@ impl TemplateFetcher {
             // Check if this is the manifest
             if relative_path == "template.yaml" {
                 let content_str = String::from_utf8_lossy(&contents);
-                manifest = Some(
-                    serde_yaml::from_str(&content_str)
-                        .with_context(|| format!("Failed to parse template '{}' manifest", template_name))?,
-                );
+                manifest = Some(serde_yaml::from_str(&content_str).with_context(|| {
+                    format!("Failed to parse template '{}' manifest", template_name)
+                })?);
             }
 
             files.insert(relative_path, contents);
@@ -282,11 +277,15 @@ impl TemplateFetcher {
     }
 
     /// Fetch a specific template's manifest
-    pub async fn fetch_template_manifest(&mut self, template_name: &str) -> Result<TemplateManifest> {
+    pub async fn fetch_template_manifest(
+        &mut self,
+        template_name: &str,
+    ) -> Result<TemplateManifest> {
         self.fetch_and_cache_template(template_name).await?;
-        let cache = self.template_cache.get(template_name).ok_or_else(|| {
-            anyhow::anyhow!("Template '{}' not found in cache", template_name)
-        })?;
+        let cache = self
+            .template_cache
+            .get(template_name)
+            .ok_or_else(|| anyhow::anyhow!("Template '{}' not found in cache", template_name))?;
         Ok(cache.manifest.clone())
     }
 
@@ -298,13 +297,22 @@ impl TemplateFetcher {
     }
 
     /// Fetch a file as bytes (for binary files)
-    pub async fn fetch_file_bytes(&mut self, template_name: &str, file_path: &str) -> Result<Vec<u8>> {
+    pub async fn fetch_file_bytes(
+        &mut self,
+        template_name: &str,
+        file_path: &str,
+    ) -> Result<Vec<u8>> {
         self.fetch_and_cache_template(template_name).await?;
-        let cache = self.template_cache.get(template_name).ok_or_else(|| {
-            anyhow::anyhow!("Template '{}' not found in cache", template_name)
-        })?;
+        let cache = self
+            .template_cache
+            .get(template_name)
+            .ok_or_else(|| anyhow::anyhow!("Template '{}' not found in cache", template_name))?;
         cache.files.get(file_path).cloned().ok_or_else(|| {
-            anyhow::anyhow!("File '{}' not found in template '{}'", file_path, template_name)
+            anyhow::anyhow!(
+                "File '{}' not found in template '{}'",
+                file_path,
+                template_name
+            )
         })
     }
 

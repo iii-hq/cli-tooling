@@ -164,11 +164,6 @@ pub async fn write_config(project_dir: &Path, selected_languages: &[Language]) -
     Ok(())
 }
 
-/// Get the default port configuration
-pub fn get_default_ports() -> (u16, u16) {
-    (DEFAULT_STREAMS_PORT, DEFAULT_API_PORT)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

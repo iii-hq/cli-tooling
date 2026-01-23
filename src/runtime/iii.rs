@@ -8,11 +8,16 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command as TokioCommand;
 use tokio::time::timeout;
 
-/// The install command that will be executed
-pub const INSTALL_COMMAND: &str = "curl -fsSL https://iii.sh/install.sh | sh";
+pub const INSTALL_SCRIPT_URL: &str = "https://iii.sh/install.sh";
+pub const DOCS_URL: &str = "https://iii.dev/docs";
 
 /// Timeout for installation (30 seconds)
 const INSTALL_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Get the install command string
+pub fn install_command() -> String {
+    format!("curl -fsSL {} | sh", INSTALL_SCRIPT_URL)
+}
 
 /// Check if iii is installed and available in PATH
 pub fn is_installed() -> bool {
@@ -43,15 +48,16 @@ pub fn get_version() -> Option<String> {
 /// Install iii using the official install script
 /// Shows the command being executed and streams output
 pub async fn install() -> Result<()> {
+    let cmd = install_command();
     println!();
     println!("{}", "Installing iii...".cyan().bold());
-    println!("{} {}", "Running:".dimmed(), INSTALL_COMMAND.yellow());
+    println!("{} {}", "Running:".dimmed(), cmd.yellow());
     println!();
 
     // Create the command
     let mut child = TokioCommand::new("sh")
         .arg("-c")
-        .arg(INSTALL_COMMAND)
+        .arg(&cmd)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
@@ -102,7 +108,7 @@ pub async fn install() -> Result<()> {
                  The server may be unreachable. Please try again later or install manually:\n\
                  {}",
                 INSTALL_TIMEOUT.as_secs(),
-                INSTALL_COMMAND
+                cmd
             );
         }
     }
@@ -119,7 +125,7 @@ pub async fn install() -> Result<()> {
                     "Installation failed with exit code: {}\n\
                      Please try installing manually: {}",
                     status.code().unwrap_or(-1),
-                    INSTALL_COMMAND
+                    cmd
                 );
             }
         }
@@ -130,7 +136,7 @@ pub async fn install() -> Result<()> {
             let _ = child.kill().await;
             anyhow::bail!(
                 "Installation process hung. Please try installing manually:\n{}",
-                INSTALL_COMMAND
+                cmd
             );
         }
     }
@@ -139,12 +145,6 @@ pub async fn install() -> Result<()> {
 /// Open the iii documentation in the default browser
 pub fn open_docs() -> Result<()> {
     println!("{}", "Opening iii documentation in your browser...".cyan());
-    open::that("https://iii.sh")?;
+    open::that(DOCS_URL)?;
     Ok(())
 }
-
-/// The iii documentation URL
-pub const DOCS_URL: &str = "https://iii.sh";
-
-/// The iii install script URL  
-pub const INSTALL_SCRIPT_URL: &str = "https://iii.sh/install.sh";

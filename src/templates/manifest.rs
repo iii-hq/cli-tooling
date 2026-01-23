@@ -82,11 +82,11 @@ impl LanguageFiles {
 /// Which language a file is associated with
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileLanguage {
-    Common,     // Always included
+    Common, // Always included
     Python,
     TypeScript,
     JavaScript,
-    Node,       // Either JS or TS
+    Node, // Either JS or TS
 }
 
 /// Root template manifest (templates/template.yaml)
@@ -142,14 +142,5 @@ impl TemplateManifest {
         self.optional
             .iter()
             .any(|o| o.eq_ignore_ascii_case(language))
-    }
-
-    /// Get all available languages (required + optional)
-    pub fn all_languages(&self) -> Vec<&str> {
-        self.requires
-            .iter()
-            .chain(self.optional.iter())
-            .map(|s| s.as_str())
-            .collect()
     }
 }

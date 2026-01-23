@@ -85,7 +85,7 @@ async fn handle_iii_check(args: &Args) -> Result<()> {
 
     match action {
         "install" => {
-            cliclack::log::info(format!("This will execute: {}", iii::INSTALL_COMMAND))?;
+            cliclack::log::info(format!("This will execute: {}", iii::install_command()))?;
 
             let confirm: bool = cliclack::confirm("Proceed with installation?")
                 .initial_value(true)
@@ -377,13 +377,7 @@ fn check_runtimes(languages: &[check::Language]) -> Result<()> {
         Ok(runtimes) => {
             let runtime_info: Vec<String> = runtimes
                 .iter()
-                .map(|r| {
-                    format!(
-                        "{} ({})",
-                        r.name,
-                        r.version.as_deref().unwrap_or("unknown")
-                    )
-                })
+                .map(|r| format!("{} ({})", r.name, r.version.as_deref().unwrap_or("unknown")))
                 .collect();
             spinner.stop(format!("Runtimes: {}", runtime_info.join(", ")));
             Ok(())
@@ -443,7 +437,7 @@ fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) -> Res
     let mut step = 1;
 
     println!("  {}.  Start iii if it's not already running", step);
-    step +=1;
+    step += 1;
     // cd to directory if not current
     let current = std::env::current_dir().ok();
     if current.as_ref() != Some(project_dir) {
@@ -466,9 +460,7 @@ fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) -> Res
 
     if has_js_ts {
         println!("  {}.  npm dev", step);
-        step += 1;
     }
-
 
     cliclack::outro("Happy coding!")?;
 

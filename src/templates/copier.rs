@@ -69,20 +69,6 @@ fn should_include_file(
     }
 }
 
-/// Get the list of files that would be copied for given language selection
-pub fn preview_files<'a>(
-    manifest: &'a TemplateManifest,
-    selected_languages: &[Language],
-    language_files: &LanguageFiles,
-) -> Vec<&'a str> {
-    manifest
-        .files
-        .iter()
-        .filter(|f| should_include_file(f, selected_languages, language_files))
-        .map(|s| s.as_str())
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -105,13 +91,8 @@ mod tests {
                 "*.config.ts".to_string(),
                 "tsconfig.json".to_string(),
             ],
-            javascript: vec![
-                "*.step.js".to_string(),
-                "*.step.jsx".to_string(),
-            ],
-            node: vec![
-                "package.json".to_string(),
-            ],
+            javascript: vec!["*.step.js".to_string(), "*.step.jsx".to_string()],
+            node: vec!["package.json".to_string()],
         }
     }
 
@@ -122,8 +103,16 @@ mod tests {
 
         assert!(should_include_file("src/start.step.ts", &languages, &lf));
         assert!(should_include_file("src/start.step.tsx", &languages, &lf));
-        assert!(should_include_file("src/tutorial.config.ts", &languages, &lf));
-        assert!(!should_include_file("src/javascript.step.js", &languages, &lf));
+        assert!(should_include_file(
+            "src/tutorial.config.ts",
+            &languages,
+            &lf
+        ));
+        assert!(!should_include_file(
+            "src/javascript.step.js",
+            &languages,
+            &lf
+        ));
         assert!(!should_include_file("src/python_step.py", &languages, &lf));
     }
 
@@ -166,7 +155,11 @@ mod tests {
 
         assert!(should_include_file("src/start.step.ts", &languages, &lf));
         assert!(should_include_file("src/python_step.py", &languages, &lf));
-        assert!(!should_include_file("src/javascript.step.js", &languages, &lf));
+        assert!(!should_include_file(
+            "src/javascript.step.js",
+            &languages,
+            &lf
+        ));
     }
 
     #[test]

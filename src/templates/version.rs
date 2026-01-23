@@ -29,6 +29,7 @@ pub fn check_compatibility(cli_version: &str, template_version: &str) -> Option<
 }
 
 /// Parse version string, handling various formats
+#[allow(dead_code)]
 pub fn parse_version(version_str: &str) -> Result<Version> {
     // Remove leading 'v' if present
     let cleaned = version_str.strip_prefix('v').unwrap_or(version_str);
