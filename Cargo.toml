@@ -26,6 +26,9 @@ serde_yaml = "0.9"
 # HTTP client for remote templates
 reqwest = { version = "0.12", features = ["json"] }
 
+# URL parsing and manipulation
+url = "2"
+
 # CLI argument parsing
 clap = { version = "4", features = ["derive"] }
 
@@ -44,3 +47,6 @@ zip = "2"
 
 # Open URLs in browser
 open = "5"
+
+[dev-dependencies]
+url = "2"

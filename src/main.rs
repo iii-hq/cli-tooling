@@ -10,9 +10,9 @@ use std::path::PathBuf;
 /// CLI version - used for template compatibility checking
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Default remote template URL (raw GitHub content)
+/// Default remote template URL (GitHub API)
 pub const DEFAULT_TEMPLATE_URL: &str =
-    "https://raw.githubusercontent.com/MotiaDev/motia/main/packages/snap/src/create/templates";
+    "https://api.github.com/repos/MotiaDev/motia-cli/contents/templates";
 
 #[derive(Parser, Debug)]
 #[command(name = "motia")]

@@ -12,20 +12,37 @@ use std::collections::HashMap;
 use std::io::{Cursor, Read, Write};
 use std::path::PathBuf;
 use tokio::fs;
+use url::Url;
 use zip::write::SimpleFileOptions;
 use zip::{ZipArchive, ZipWriter};
 
 /// Template source - either remote URL or local directory
 #[derive(Debug, Clone)]
 pub enum TemplateSource {
-    Remote(String),
+    Remote(Url),
     Local(PathBuf),
 }
 
 impl TemplateSource {
-    /// Create a remote template source with the default URL
-    pub fn default_remote() -> Self {
-        Self::Remote(crate::DEFAULT_TEMPLATE_URL.to_string())
+    /// Environment variable name for overriding the template URL
+    pub const TEMPLATE_URL_ENV: &'static str = "MOTIA_TEMPLATE_URL";
+    
+    /// Environment variable name for GitHub token (works with private repos)
+    pub const GITHUB_TOKEN_ENV: &'static str = "GITHUB_TOKEN";
+
+    pub fn default_remote() -> Result<Self> {
+        let url_str = std::env::var(Self::TEMPLATE_URL_ENV)
+            .unwrap_or_else(|_| crate::DEFAULT_TEMPLATE_URL.to_string());
+        let url = Url::parse(&url_str)
+            .with_context(|| format!("Invalid template URL: {}", url_str))?;
+        Ok(Self::Remote(url))
+    }
+
+    /// Create a remote template source from a URL string
+    pub fn remote(url_str: &str) -> Result<Self> {
+        let url = Url::parse(url_str)
+            .with_context(|| format!("Invalid template URL: {}", url_str))?;
+        Ok(Self::Remote(url))
     }
 
     /// Create a local template source from a path
@@ -45,34 +62,66 @@ struct TemplateCache {
 pub struct TemplateFetcher {
     source: TemplateSource,
     client: reqwest::Client,
+    /// Optional GitHub token for private repos
+    github_token: Option<String>,
     /// Cache of downloaded/built and extracted templates
     template_cache: HashMap<String, TemplateCache>,
 }
 
 impl TemplateFetcher {
     pub fn new(source: TemplateSource) -> Self {
+        let github_token = std::env::var(TemplateSource::GITHUB_TOKEN_ENV).ok();
+        
         Self {
             source,
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .user_agent("motia-cli")
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new()),
+            github_token,
             template_cache: HashMap::new(),
         }
+    }
+
+    /// Build a request with optional auth header
+    fn build_request(&self, url: Url) -> reqwest::RequestBuilder {
+        let mut request = self.client.get(url);
+        
+        if let Some(token) = &self.github_token {
+            request = request
+                .header("Authorization", format!("Bearer {}", token))
+                .header("Accept", "application/vnd.github.raw+json");
+        }
+        
+        request
+    }
+
+    /// Build a URL by appending a path segment, preserving query parameters
+    fn build_url(base: &Url, path_segment: &str) -> Result<Url> {
+        let mut url = base.clone();
+        // Append path segment to existing path
+        url.path_segments_mut()
+            .map_err(|_| anyhow::anyhow!("URL cannot have path segments: {}", base))?
+            .pop_if_empty()
+            .push(path_segment);
+        Ok(url)
     }
 
     /// Fetch the root manifest listing available templates
     pub async fn fetch_root_manifest(&self) -> Result<RootManifest> {
         match &self.source {
             TemplateSource::Remote(base_url) => {
-                let url = format!("{}/template.yaml", base_url);
+                let url = Self::build_url(base_url, "template.yaml")?;
                 let response = self
-                    .client
-                    .get(&url)
+                    .build_request(url.clone())
                     .send()
                     .await
-                    .context("Failed to fetch root template manifest")?;
+                    .with_context(|| format!("Failed to fetch root template manifest from {}", url))?;
 
                 if !response.status().is_success() {
                     anyhow::bail!(
-                        "Failed to fetch root manifest: HTTP {}",
+                        "Failed to fetch root manifest from {}: HTTP {}",
+                        url,
                         response.status()
                     );
                 }
@@ -202,18 +251,18 @@ impl TemplateFetcher {
         let zip_bytes = match &self.source {
             TemplateSource::Remote(base_url) => {
                 // Fetch the zip file from remote
-                let zip_url = format!("{}/{}.zip", base_url, template_name);
+                let zip_url = Self::build_url(base_url, &format!("{}.zip", template_name))?;
                 let response = self
-                    .client
-                    .get(&zip_url)
+                    .build_request(zip_url.clone())
                     .send()
                     .await
                     .with_context(|| format!("Failed to fetch template zip: {}", template_name))?;
 
                 if !response.status().is_success() {
                     anyhow::bail!(
-                        "Failed to fetch template '{}' zip: HTTP {}",
+                        "Failed to fetch template '{}' zip from {}: HTTP {}",
                         template_name,
+                        zip_url,
                         response.status()
                     );
                 }

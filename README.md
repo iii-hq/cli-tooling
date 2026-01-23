@@ -97,5 +97,3 @@ For remote fetching (production), the CLI:
 1. Fetches `template.yaml` to get the list of templates
 2. Fetches `{template_name}.zip` for the selected template
 3. Extracts and filters files based on selected languages
-
-The GitHub Action automatically rebuilds zips when template files change.

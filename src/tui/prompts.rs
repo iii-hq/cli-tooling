@@ -79,7 +79,7 @@ async fn handle_iii_check(args: &Args) -> Result<()> {
 
     let action: &str = cliclack::select("What would you like to do?")
         .item("install", "Install iii automatically", "")
-        .item("docs", "Open documentation (https://iii.sh)", "")
+        .item("docs", "Open documentation (https://iii.dev)", "")
         .item("skip", "Skip and continue without iii", "")
         .interact()?;
 
@@ -136,7 +136,7 @@ fn setup_fetcher(args: &Args) -> Result<TemplateFetcher> {
         }
         None => {
             cliclack::log::info("Using remote templates")?;
-            TemplateSource::default_remote()
+            TemplateSource::default_remote()?
         }
     };
 
