@@ -118,7 +118,6 @@ pub async fn install() -> Result<()> {
         Ok(Ok(status)) => {
             println!();
             if status.success() {
-                println!("{}", "✓ iii installed successfully!".green().bold());
                 Ok(())
             } else {
                 anyhow::bail!(

@@ -96,15 +96,11 @@ async fn handle_iii_check(args: &Args) -> Result<()> {
                 .interact()?;
 
             if confirm {
-                let spinner = cliclack::spinner();
-                spinner.start("Installing iii...");
-
                 match iii::install().await {
                     Ok(_) => {
-                        spinner.stop("iii installed successfully");
+                        cliclack::log::success("iii installed successfully")?;
                     }
                     Err(e) => {
-                        spinner.stop("Installation failed");
                         cliclack::log::error(format!("{}", e))?;
 
                         let continue_anyway: bool = cliclack::confirm("Continue without iii?")
