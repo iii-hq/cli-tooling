@@ -4,12 +4,12 @@ use crate::config::generator;
 use crate::runtime::{check, iii};
 use crate::templates::manifest::{LanguageFiles, TemplateManifest};
 use crate::templates::{copier, fetcher::TemplateFetcher, fetcher::TemplateSource, version};
-use crate::{Args, CLI_VERSION};
+use crate::{CreateArgs, CLI_VERSION};
 use anyhow::Result;
 use std::path::PathBuf;
 
 /// Run the CLI with interactive prompts
-pub async fn run(args: Args) -> Result<()> {
+pub async fn run(args: CreateArgs) -> Result<()> {
     cliclack::intro("motia")?;
 
     // Step 1: Check iii installation (skip if --skip-iii)
@@ -20,7 +20,7 @@ pub async fn run(args: Args) -> Result<()> {
     }
 
     // Step 2: Setup template fetcher
-    let mut fetcher = setup_fetcher(&args)?;
+    let mut fetcher = setup_fetcher(&args.template_dir)?;
 
     // Step 3: Select template (also returns merged language_files)
     let (template_name, manifest, language_files) =
@@ -60,7 +60,7 @@ pub async fn run(args: Args) -> Result<()> {
     Ok(())
 }
 
-async fn handle_iii_check(args: &Args) -> Result<()> {
+async fn handle_iii_check(args: &CreateArgs) -> Result<()> {
     let installed = iii::is_installed();
 
     if installed {
@@ -136,8 +136,8 @@ async fn handle_iii_check(args: &Args) -> Result<()> {
     Ok(())
 }
 
-fn setup_fetcher(args: &Args) -> Result<TemplateFetcher> {
-    let source = match &args.template_dir {
+fn setup_fetcher(template_dir: &Option<PathBuf>) -> Result<TemplateFetcher> {
+    let source = match template_dir {
         Some(path) => {
             cliclack::log::info(format!("Using local templates from {}", path.display()))?;
             TemplateSource::local(path.clone())
@@ -226,7 +226,7 @@ async fn select_template(
     Ok((name, manifest, language_files))
 }
 
-fn select_directory(args: &Args) -> Result<PathBuf> {
+fn select_directory(args: &CreateArgs) -> Result<PathBuf> {
     let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
     // Use --directory flag if provided
@@ -299,7 +299,10 @@ fn parse_language(s: &str) -> Option<check::Language> {
     }
 }
 
-fn select_languages(manifest: &TemplateManifest, args: &Args) -> Result<Vec<check::Language>> {
+fn select_languages(
+    manifest: &TemplateManifest,
+    args: &CreateArgs,
+) -> Result<Vec<check::Language>> {
     let mut required_languages: Vec<check::Language> = Vec::new();
     let mut optional_languages: Vec<check::Language> = Vec::new();
 
