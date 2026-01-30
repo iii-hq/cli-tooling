@@ -6,7 +6,7 @@
 //!
 //! This ensures identical behavior between development and production.
 
-use super::manifest::{RootManifest, TemplateManifest};
+use super::manifest::{RootManifest, SharedFile, TemplateManifest};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::io::{Cursor, Read, Write};
@@ -135,15 +135,32 @@ impl TemplateFetcher {
     }
 
     /// Build a zip file for a local template (reads files list from template.yaml)
-    pub fn build_local_zip(template_dir: &PathBuf, template_name: &str) -> Result<Vec<u8>> {
+    /// Includes shared files from root templates directory with optional renaming
+    pub fn build_local_zip(
+        template_dir: &PathBuf,
+        template_name: &str,
+        shared_files: &[SharedFile],
+    ) -> Result<Vec<u8>> {
         let template_path = template_dir.join(template_name);
         let manifest_path = template_path.join("template.yaml");
 
         // Read and parse the template manifest to get the files list
         let manifest_content = std::fs::read_to_string(&manifest_path)
             .with_context(|| format!("Failed to read {}", manifest_path.display()))?;
-        let manifest: TemplateManifest = serde_yaml::from_str(&manifest_content)
+        let mut manifest: TemplateManifest = serde_yaml::from_str(&manifest_content)
             .with_context(|| format!("Failed to parse template '{}' manifest", template_name))?;
+
+        // Add shared file destinations to manifest.files so they're included in language filtering
+        for shared in shared_files {
+            let dest = shared.destination().to_string();
+            if !manifest.files.contains(&dest) {
+                manifest.files.push(dest);
+            }
+        }
+
+        // Re-serialize manifest with shared files included
+        let manifest_content = serde_yaml::to_string(&manifest)
+            .context("Failed to serialize updated manifest")?;
 
         // Create zip in memory
         let mut zip_buffer = Vec::new();
@@ -152,13 +169,41 @@ impl TemplateFetcher {
             let options =
                 SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
-            // Always include template.yaml first
+            // Always include template.yaml first (with updated files list)
             let template_yaml_path = format!("{}/template.yaml", template_name);
             zip.start_file(&template_yaml_path, options)?;
             zip.write_all(manifest_content.as_bytes())?;
 
-            // Add each file from the manifest's files list
+            // Add shared files from root templates directory (with renaming)
+            for shared in shared_files {
+                let source_path = template_dir.join(&shared.source);
+                let dest_name = shared.destination();
+
+                if source_path.exists() {
+                    let content = std::fs::read(&source_path)
+                        .with_context(|| format!("Failed to read shared file {}", source_path.display()))?;
+                    let zip_path = format!("{}/{}", template_name, dest_name);
+                    zip.start_file(&zip_path, options)?;
+                    zip.write_all(&content)?;
+                } else {
+                    eprintln!(
+                        "Warning: Shared file '{}' not found in {}",
+                        shared.source,
+                        template_dir.display()
+                    );
+                }
+            }
+
+            // Add each file from the manifest's original files list (excluding shared file dests)
+            let shared_dests: std::collections::HashSet<_> =
+                shared_files.iter().map(|s| s.destination()).collect();
+
             for file_path in &manifest.files {
+                // Skip if this is a shared file destination (already added above)
+                if shared_dests.contains(file_path.as_str()) {
+                    continue;
+                }
+
                 let full_path = template_path.join(file_path);
                 if full_path.exists() {
                     let content = std::fs::read(&full_path)
@@ -265,8 +310,15 @@ impl TemplateFetcher {
                 response.bytes().await?.to_vec()
             }
             TemplateSource::Local(path) => {
-                // Build zip from local template folder
-                Self::build_local_zip(path, template_name)?
+                // Read root manifest to get shared files
+                let root_manifest_path = path.join("template.yaml");
+                let root_content = std::fs::read_to_string(&root_manifest_path)
+                    .with_context(|| format!("Failed to read {}", root_manifest_path.display()))?;
+                let root_manifest: RootManifest = serde_yaml::from_str(&root_content)
+                    .context("Failed to parse root template.yaml")?;
+
+                // Build zip from local template folder with shared files
+                Self::build_local_zip(path, template_name, &root_manifest.shared_files)?
             }
         };
 

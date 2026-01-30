@@ -89,6 +89,24 @@ pub enum FileLanguage {
     Node, // Either JS or TS
 }
 
+/// A shared file from the root templates directory that gets bundled into every template
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SharedFile {
+    /// Source path relative to templates/ directory
+    pub source: String,
+
+    /// Destination path in each template (defaults to source if not specified)
+    #[serde(default)]
+    pub dest: Option<String>,
+}
+
+impl SharedFile {
+    /// Get the destination path (falls back to source if dest not specified)
+    pub fn destination(&self) -> &str {
+        self.dest.as_deref().unwrap_or(&self.source)
+    }
+}
+
 /// Root template manifest (templates/template.yaml)
 /// Lists available template directories and global language file associations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -99,6 +117,11 @@ pub struct RootManifest {
     /// Global language-specific file patterns (optional)
     #[serde(default)]
     pub language_files: LanguageFiles,
+
+    /// Shared files from root templates/ directory to include in every template
+    /// Supports renaming via source/dest mapping
+    #[serde(default)]
+    pub shared_files: Vec<SharedFile>,
 }
 
 /// Per-template manifest (templates/<name>/template.yaml)

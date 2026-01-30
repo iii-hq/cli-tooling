@@ -3,6 +3,12 @@ templates:
   - quickstart
   - blank
 
+# Shared files from root templates/ directory included in every template
+# Supports renaming: source is the file in templates/, dest is the name in each template
+shared_files:
+  - source: default-gitignore
+    dest: .gitignore
+
 # Global language-specific file patterns
 # These determine which files are included based on selected languages
 # Patterns support: exact match, prefix* match, *suffix match
@@ -21,7 +27,6 @@ language_files:
   # Files only included when Python is selected
   python:
     - "*_step.py" # Python step files
-    - "requirements" # pip requirements (no extension)
     - "requirements.txt" # pip requirements
     - "pyproject.toml" # Modern Python project config
     - "setup.py" # Setuptools config

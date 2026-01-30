@@ -20,6 +20,7 @@ files:
   - motia-workbench.json
   - package.json
   - requirements.txt
+  - iii.config.yaml
 
   # Step files - filtered by language selection
   - src/start.step.ts

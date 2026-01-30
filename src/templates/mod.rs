@@ -45,7 +45,7 @@ pub async fn build_zips(template_dir: &Option<PathBuf>) -> Result<()> {
 
         print!("  {} {}...", "→".blue(), template_name);
 
-        match fetcher::TemplateFetcher::build_local_zip(&dir, template_name) {
+        match fetcher::TemplateFetcher::build_local_zip(&dir, template_name, &root_manifest.shared_files) {
             Ok(zip_bytes) => {
                 let zip_path = dir.join(format!("{}.zip", template_name));
                 std::fs::write(&zip_path, &zip_bytes)
