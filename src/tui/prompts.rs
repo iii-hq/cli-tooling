@@ -423,9 +423,6 @@ async fn create_project(
     )
     .await?;
 
-    // Generate iii config
-    generator::write_config(project_dir, selected_languages).await?;
-
     spinner.stop(format!(
         "Created {} files in {}",
         copied_files.len() + 1,

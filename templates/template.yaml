@@ -23,6 +23,7 @@ language_files:
     - "LICENSE"
     - "LICENSE*"
     - "motia-workbench.json"
+    - "*.config.yaml"
 
   # Files only included when Python is selected
   python:
