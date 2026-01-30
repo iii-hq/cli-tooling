@@ -9,14 +9,14 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
 cd "$REPO_ROOT"
 
-# Build the CLI if needed, then run with --build-zips
+# Build the CLI if needed, then run with build-zips
 if [ -f "target/release/motia-cli" ]; then
-    ./target/release/motia-cli --template-dir=./templates --build-zips
+    ./target/release/motia-cli build-zips --template-dir=./templates 
 elif [ -f "target/debug/motia-cli" ]; then
-    ./target/debug/motia-cli --template-dir=./templates --build-zips
+    ./target/debug/motia-cli build-zips --template-dir=./templates 
 else
     # Build and run via cargo
-    cargo run --quiet -- --template-dir=./templates --build-zips
+    cargo run --quiet -- build-zips --template-dir=./templates 
 fi
 
 # Stage the zip files for git
