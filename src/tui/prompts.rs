@@ -444,7 +444,7 @@ fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) -> Res
 
     let mut step = 1;
 
-    println!("  {}.  Start iii if it's not already running", step);
+    println!("  {}.  iii -c iii.config.yaml", step);
     step += 1;
     // cd to directory if not current
     let current = std::env::current_dir().ok();
