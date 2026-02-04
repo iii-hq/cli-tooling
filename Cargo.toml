@@ -5,6 +5,12 @@ edition = "2021"
 description = "CLI for scaffolding Motia projects with iii integration"
 authors = ["Motia Dev Team"]
 
+[profile.release]
+opt-level = "z"     # Optimize for size
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Reduce parallel code generation units
+strip = true        # Strip symbols from binary (Rust 1.59+)
+
 [dependencies]
 # Interactive prompts (Charm-style)
 cliclack = "0.3"
