@@ -848,6 +848,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "iii-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "console 0.15.11",
+ "ctrlc",
+ "scaffolder-core",
+ "tokio",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1045,20 +1057,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "cliclack",
- "colored",
  "console 0.15.11",
  "ctrlc",
- "open",
- "reqwest",
- "semver",
- "serde",
- "serde_yaml",
- "thiserror",
+ "scaffolder-core",
  "tokio",
- "url",
- "walkdir",
- "zip",
 ]
 
 [[package]]
@@ -1414,6 +1416,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "scaffolder-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "cliclack",
+ "colored",
+ "console 0.15.11",
+ "ctrlc",
+ "open",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_yaml",
+ "thiserror",
+ "tokio",
+ "url",
+ "walkdir",
+ "zip",
 ]
 
 [[package]]

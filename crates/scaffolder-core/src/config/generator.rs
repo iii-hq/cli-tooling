@@ -1,14 +1,4 @@
-//! iii configuration file generator
-
-use crate::runtime::check::Language;
-use anyhow::{Context, Result};
-use std::path::Path;
-use tokio::fs;
-
-/// Default port configurations
-const DEFAULT_STREAMS_PORT: u16 = 31112;
-const DEFAULT_API_PORT: u16 = 31113;
-const DEFAULT_LOG_LEVEL: &str = "debug";
+//! Configuration file utilities
 
 /// Supported JavaScript runtimes in order of preference
 const JS_RUNTIMES: &[(&str, &str)] = &[
@@ -17,7 +7,7 @@ const JS_RUNTIMES: &[(&str, &str)] = &[
 ];
 
 /// Detect the available JavaScript runtime
-fn detect_js_runtime() -> &'static str {
+pub fn detect_js_runtime() -> &'static str {
     for (runtime, command) in JS_RUNTIMES {
         if std::process::Command::new(runtime)
             .arg("--version")
@@ -31,11 +21,9 @@ fn detect_js_runtime() -> &'static str {
     JS_RUNTIMES[0].1
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     #[test]
     fn test_detect_js_runtime_returns_valid_command() {

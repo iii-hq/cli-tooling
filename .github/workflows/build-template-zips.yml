@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - "templates/**"
-      - "!templates/*.zip"
+      - "!templates/**/*.zip"
     branches:
       - main
       - master
@@ -23,22 +23,28 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-action@stable
 
-      - name: Build CLI
-        run: cargo build --release
+      - name: Build motia CLI
+        run: cargo build --release -p motia-cli
 
-      - name: Build template zips
-        run: ./target/release/motia-cli --template-dir=./templates --build-zips
+      - name: Build iii CLI
+        run: cargo build --release -p iii-cli
+
+      - name: Build motia template zips
+        run: ./target/release/motia build-zips --template-dir=./templates/motia
+
+      - name: Build iii template zips
+        run: ./target/release/iii-create build-zips --template-dir=./templates/iii
 
       - name: Check for changes
         id: check_changes
         run: |
-          git diff --quiet templates/*.zip || echo "changed=true" >> $GITHUB_OUTPUT
+          git diff --quiet templates/**/*.zip || echo "changed=true" >> $GITHUB_OUTPUT
 
       - name: Commit and push if changed
         if: steps.check_changes.outputs.changed == 'true'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add templates/*.zip
+          git add templates/**/*.zip
           git commit -m "chore: rebuild template zips [skip ci]"
           git push

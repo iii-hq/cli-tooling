@@ -7,6 +7,7 @@
 //! This ensures identical behavior between development and production.
 
 use super::manifest::{RootManifest, SharedFile, TemplateManifest};
+use crate::product::ProductConfig;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::io::{Cursor, Read, Write};
@@ -16,6 +17,9 @@ use url::Url;
 use zip::write::SimpleFileOptions;
 use zip::{ZipArchive, ZipWriter};
 
+/// Environment variable name for GitHub token (works with private repos)
+pub const GITHUB_TOKEN_ENV: &str = "GITHUB_TOKEN";
+
 /// Template source - either remote URL or local directory
 #[derive(Debug, Clone)]
 pub enum TemplateSource {
@@ -24,15 +28,10 @@ pub enum TemplateSource {
 }
 
 impl TemplateSource {
-    /// Environment variable name for overriding the template URL
-    pub const TEMPLATE_URL_ENV: &'static str = "MOTIA_TEMPLATE_URL";
-
-    /// Environment variable name for GitHub token (works with private repos)
-    pub const GITHUB_TOKEN_ENV: &'static str = "GITHUB_TOKEN";
-
-    pub fn default_remote() -> Result<Self> {
-        let url_str = std::env::var(Self::TEMPLATE_URL_ENV)
-            .unwrap_or_else(|_| crate::DEFAULT_TEMPLATE_URL.to_string());
+    /// Create a remote template source from a product config
+    pub fn from_config<C: ProductConfig>(config: &C) -> Result<Self> {
+        let url_str = std::env::var(config.template_url_env())
+            .unwrap_or_else(|_| config.default_template_url().to_string());
         let url =
             Url::parse(&url_str).with_context(|| format!("Invalid template URL: {}", url_str))?;
         Ok(Self::Remote(url))
@@ -62,18 +61,30 @@ pub struct TemplateFetcher {
 }
 
 impl TemplateFetcher {
-    pub fn new(source: TemplateSource) -> Self {
-        let github_token = std::env::var(TemplateSource::GITHUB_TOKEN_ENV).ok();
+    /// Create a new fetcher with a custom user agent
+    pub fn new(source: TemplateSource, user_agent: &str) -> Self {
+        let github_token = std::env::var(GITHUB_TOKEN_ENV).ok();
 
         Self {
             source,
             client: reqwest::Client::builder()
-                .user_agent("motia-cli")
+                .user_agent(user_agent)
                 .build()
                 .unwrap_or_else(|_| reqwest::Client::new()),
             github_token,
             template_cache: HashMap::new(),
         }
+    }
+
+    /// Create a fetcher from a product config
+    pub fn from_config<C: ProductConfig>(config: &C) -> Result<Self> {
+        let source = TemplateSource::from_config(config)?;
+        Ok(Self::new(source, config.user_agent()))
+    }
+
+    /// Create a fetcher for local templates
+    pub fn from_local(path: PathBuf, user_agent: &str) -> Self {
+        Self::new(TemplateSource::local(path), user_agent)
     }
 
     /// Build a request with optional auth header
@@ -159,8 +170,8 @@ impl TemplateFetcher {
         }
 
         // Re-serialize manifest with shared files included
-        let manifest_content = serde_yaml::to_string(&manifest)
-            .context("Failed to serialize updated manifest")?;
+        let manifest_content =
+            serde_yaml::to_string(&manifest).context("Failed to serialize updated manifest")?;
 
         // Create zip in memory
         let mut zip_buffer = Vec::new();
@@ -180,8 +191,9 @@ impl TemplateFetcher {
                 let dest_name = shared.destination();
 
                 if source_path.exists() {
-                    let content = std::fs::read(&source_path)
-                        .with_context(|| format!("Failed to read shared file {}", source_path.display()))?;
+                    let content = std::fs::read(&source_path).with_context(|| {
+                        format!("Failed to read shared file {}", source_path.display())
+                    })?;
                     let zip_path = format!("{}/{}", template_name, dest_name);
                     zip.start_file(&zip_path, options)?;
                     zip.write_all(&content)?;
