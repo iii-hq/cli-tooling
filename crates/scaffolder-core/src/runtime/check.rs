@@ -141,7 +141,7 @@ pub fn check_runtimes(languages: &[Language]) -> Result<Vec<RuntimeInfo>> {
             "Missing required runtimes:\n{}",
             missing
                 .iter()
-                .map(|m| format!("  • {}", m))
+                .map(|m| format!("  - {}", m))
                 .collect::<Vec<_>>()
                 .join("\n")
         );

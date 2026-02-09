@@ -5,7 +5,11 @@ use semver::Version;
 
 /// Compare CLI version against template version
 /// Returns a warning message if the CLI is older than the template expects
-pub fn check_compatibility(cli_version: &str, template_version: &str) -> Option<String> {
+pub fn check_compatibility(
+    cli_version: &str,
+    template_version: &str,
+    upgrade_command: &str,
+) -> Option<String> {
     let cli_ver = match Version::parse(cli_version) {
         Ok(v) => v,
         Err(_) => return None, // Can't compare, skip warning
@@ -20,8 +24,8 @@ pub fn check_compatibility(cli_version: &str, template_version: &str) -> Option<
         Some(format!(
             "Warning: This template was designed for CLI version {} or newer.\n\
              You are running version {}.\n\
-             Consider updating: cargo install motia-cli --force",
-            template_version, cli_version
+             Consider updating: {}",
+            template_version, cli_version, upgrade_command
         ))
     } else {
         None
@@ -42,27 +46,27 @@ mod tests {
 
     #[test]
     fn test_cli_older_than_template() {
-        let warning = check_compatibility("0.1.0", "0.2.0");
+        let warning = check_compatibility("0.1.0", "0.2.0", "cargo install test-cli --force");
         assert!(warning.is_some());
         assert!(warning.unwrap().contains("0.2.0"));
     }
 
     #[test]
     fn test_cli_same_as_template() {
-        let warning = check_compatibility("0.1.0", "0.1.0");
+        let warning = check_compatibility("0.1.0", "0.1.0", "cargo install test-cli --force");
         assert!(warning.is_none());
     }
 
     #[test]
     fn test_cli_newer_than_template() {
-        let warning = check_compatibility("0.2.0", "0.1.0");
+        let warning = check_compatibility("0.2.0", "0.1.0", "cargo install test-cli --force");
         assert!(warning.is_none());
     }
 
     #[test]
     fn test_invalid_versions() {
         // Should return None (no warning) for invalid versions
-        let warning = check_compatibility("invalid", "0.1.0");
+        let warning = check_compatibility("invalid", "0.1.0", "cargo install test-cli --force");
         assert!(warning.is_none());
     }
 }

@@ -1,33 +1,69 @@
 //! Charm-style CLI prompts using cliclack
 
-use crate::config::generator;
-use crate::runtime::{check, iii};
+use crate::product::ProductConfig;
+use crate::runtime::check;
 use crate::templates::manifest::{LanguageFiles, TemplateManifest};
-use crate::templates::{copier, fetcher::TemplateFetcher, fetcher::TemplateSource, version};
-use crate::{CreateArgs, CLI_VERSION};
+use crate::templates::{copier, fetcher::TemplateFetcher, version};
 use anyhow::Result;
 use std::path::PathBuf;
 
-/// Run the CLI with interactive prompts
-pub async fn run(args: CreateArgs) -> Result<()> {
-    cliclack::intro("motia")?;
+/// CLI arguments for the create command
+#[derive(Debug, Clone)]
+pub struct CreateArgs {
+    /// Local directory to use for templates instead of fetching from remote
+    pub template_dir: Option<PathBuf>,
 
-    // Step 1: Check iii installation (skip if --skip-iii)
-    if !args.skip_iii {
-        handle_iii_check(&args).await?;
-    } else {
-        cliclack::log::info("Skipping iii check")?;
+    /// Template name to use
+    pub template: Option<String>,
+
+    /// Project directory to create
+    pub directory: Option<PathBuf>,
+
+    /// Languages to include
+    pub languages: Option<Vec<String>>,
+
+    /// Skip tool installation check (e.g., iii)
+    pub skip_tool_check: bool,
+
+    /// Auto-confirm all prompts (non-interactive mode)
+    pub yes: bool,
+}
+
+impl Default for CreateArgs {
+    fn default() -> Self {
+        Self {
+            template_dir: None,
+            template: None,
+            directory: None,
+            languages: None,
+            skip_tool_check: false,
+            yes: false,
+        }
+    }
+}
+
+/// Run the CLI with interactive prompts
+pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &str) -> Result<()> {
+    cliclack::intro(config.display_name())?;
+
+    // Step 1: Check tool installation (skip if --skip-tool-check or product doesn't require it)
+    if config.requires_iii() && !args.skip_tool_check {
+        handle_tool_check(config, &args).await?;
+    } else if args.skip_tool_check {
+        cliclack::log::info("Skipping tool check")?;
     }
 
     // Step 2: Setup template fetcher
-    let mut fetcher = setup_fetcher(&args.template_dir)?;
+    let mut fetcher = setup_fetcher(config, &args.template_dir)?;
 
     // Step 3: Select template (also returns merged language_files)
     let (template_name, manifest, language_files) =
         select_template(&mut fetcher, args.template.as_deref()).await?;
 
     // Check version compatibility
-    if let Some(warning) = version::check_compatibility(CLI_VERSION, &manifest.version) {
+    if let Some(warning) =
+        version::check_compatibility(cli_version, &manifest.version, config.upgrade_command())
+    {
         cliclack::log::warning(format!(
             "Version warning: {}",
             warning.lines().next().unwrap_or(&warning)
@@ -55,57 +91,81 @@ pub async fn run(args: CreateArgs) -> Result<()> {
     .await?;
 
     // Step 8: Show next steps
-    print_next_steps(&project_dir, &selected_languages)?;
+    print_next_steps(config, &project_dir, &selected_languages)?;
 
     Ok(())
 }
 
-async fn handle_iii_check(args: &CreateArgs) -> Result<()> {
-    let installed = iii::is_installed();
+async fn handle_tool_check<C: ProductConfig>(_config: &C, args: &CreateArgs) -> Result<()> {
+    // Create tool manager for iii
+    let tool = crate::runtime::tool::iii_tool();
+
+    let installed = tool.is_installed();
 
     if installed {
-        let version = iii::get_version().unwrap_or_else(|| "unknown".to_string());
-        cliclack::log::success(format!("iii installed ({})", version))?;
+        let version = tool.get_version().unwrap_or_else(|| "unknown".to_string());
+        cliclack::log::success(format!(
+            "{} installed ({})",
+            tool.config().display_name,
+            version
+        ))?;
         return Ok(());
     }
 
-    cliclack::log::warning("iii is not installed")?;
+    cliclack::log::warning(format!("{} is not installed", tool.config().display_name))?;
 
     // In non-interactive mode, just skip
     if args.yes {
-        cliclack::log::info("Continuing without iii (--yes mode)")?;
+        cliclack::log::info(format!(
+            "Continuing without {} (--yes mode)",
+            tool.config().display_name
+        ))?;
         return Ok(());
     }
 
     let action: &str = cliclack::select("What would you like to do?")
-        .item("install", "Install iii automatically", "")
         .item(
-            "docs",
-            format!("Open documentation ({})", iii::DOCS_URL),
+            "install",
+            format!("Install {} automatically", tool.config().display_name),
             "",
         )
-        .item("skip", "Skip and continue without iii", "")
+        .item(
+            "docs",
+            format!("Open documentation ({})", tool.config().docs_url),
+            "",
+        )
+        .item(
+            "skip",
+            format!("Skip and continue without {}", tool.config().display_name),
+            "",
+        )
         .interact()?;
 
     match action {
         "install" => {
-            cliclack::log::info(format!("This will execute: {}", iii::install_command()))?;
+            cliclack::log::info(format!("This will execute: {}", tool.install_command()))?;
 
             let confirm: bool = cliclack::confirm("Proceed with installation?")
                 .initial_value(true)
                 .interact()?;
 
             if confirm {
-                match iii::install().await {
+                match tool.install().await {
                     Ok(_) => {
-                        cliclack::log::success("iii installed successfully")?;
+                        cliclack::log::success(format!(
+                            "{} installed successfully",
+                            tool.config().display_name
+                        ))?;
                     }
                     Err(e) => {
                         cliclack::log::error(format!("{}", e))?;
 
-                        let continue_anyway: bool = cliclack::confirm("Continue without iii?")
-                            .initial_value(false)
-                            .interact()?;
+                        let continue_anyway: bool = cliclack::confirm(format!(
+                            "Continue without {}?",
+                            tool.config().display_name
+                        ))
+                        .initial_value(false)
+                        .interact()?;
 
                         if !continue_anyway {
                             anyhow::bail!("Setup cancelled.");
@@ -114,20 +174,25 @@ async fn handle_iii_check(args: &CreateArgs) -> Result<()> {
                 }
             } else {
                 cliclack::log::info(format!(
-                    "Continuing without iii. Refer to the docs for installation instructions: ({})",
-                    iii::DOCS_URL
+                    "Continuing without {}. Refer to the docs for installation instructions: ({})",
+                    tool.config().display_name,
+                    tool.config().docs_url
                 ))?;
             }
         }
         "docs" => {
-            iii::open_docs()?;
-            cliclack::outro("After installing iii, run this command again.")?;
+            tool.open_docs()?;
+            cliclack::outro(format!(
+                "After installing {}, run this command again.",
+                tool.config().display_name
+            ))?;
             std::process::exit(0);
         }
         "skip" => {
             cliclack::log::info(format!(
-                "Continuing without iii. Refer to the docs for installation instructions: ({})",
-                iii::DOCS_URL
+                "Continuing without {}. Refer to the docs for installation instructions: ({})",
+                tool.config().display_name,
+                tool.config().docs_url
             ))?;
         }
         _ => {}
@@ -136,19 +201,22 @@ async fn handle_iii_check(args: &CreateArgs) -> Result<()> {
     Ok(())
 }
 
-fn setup_fetcher(template_dir: &Option<PathBuf>) -> Result<TemplateFetcher> {
-    let source = match template_dir {
+fn setup_fetcher<C: ProductConfig>(
+    config: &C,
+    template_dir: &Option<PathBuf>,
+) -> Result<TemplateFetcher> {
+    let fetcher = match template_dir {
         Some(path) => {
             cliclack::log::info(format!("Using local templates from {}", path.display()))?;
-            TemplateSource::local(path.clone())
+            TemplateFetcher::from_local(path.clone(), config.user_agent())
         }
         None => {
             cliclack::log::info("Using remote templates")?;
-            TemplateSource::default_remote()?
+            TemplateFetcher::from_config(config)?
         }
     };
 
-    Ok(TemplateFetcher::new(source))
+    Ok(fetcher)
 }
 
 async fn select_template(
@@ -182,7 +250,7 @@ async fn select_template(
         let manifest = fetcher.fetch_template_manifest(template_name).await?;
         let language_files = merge_language_files(&manifest);
         spinner.stop(format!(
-            "Template: {} — {}",
+            "Template: {} - {}",
             manifest.name, manifest.description
         ));
         return Ok((template_name.to_string(), manifest, language_files));
@@ -205,7 +273,7 @@ async fn select_template(
         let (name, manifest) = templates.into_iter().next().unwrap();
         let language_files = merge_language_files(&manifest);
         cliclack::log::info(format!(
-            "Using template: {} — {}",
+            "Using template: {} - {}",
             manifest.name, manifest.description
         ))?;
         return Ok((name, manifest, language_files));
@@ -432,42 +500,19 @@ async fn create_project(
     Ok(())
 }
 
-fn print_next_steps(project_dir: &PathBuf, languages: &[check::Language]) -> Result<()> {
-    let has_js_ts = languages
-        .iter()
-        .any(|l| matches!(l, check::Language::TypeScript | check::Language::JavaScript));
-    let has_python = languages.contains(&check::Language::Python);
+fn print_next_steps<C: ProductConfig>(
+    config: &C,
+    project_dir: &PathBuf,
+    languages: &[check::Language],
+) -> Result<()> {
+    let steps = config.next_steps(project_dir, languages);
 
     println!();
     println!("  Next steps");
     println!();
 
-    let mut step = 1;
-
-    println!("  {}.  iii -c iii.config.yaml", step);
-    step += 1;
-    // cd to directory if not current
-    let current = std::env::current_dir().ok();
-    if current.as_ref() != Some(project_dir) {
-        println!("  {}.  cd {}", step, project_dir.display());
-        step += 1;
-    }
-
-    if has_js_ts {
-        println!("  {}.  npm install @iii-dev/motia", step);
-        step += 1;
-    }
-
-    if has_python {
-        println!("  {}.  Set up Python environment:", step);
-        println!("      uv venv && uv pip install -r requirements.txt");
-        println!("      — or —");
-        println!("      python3 -m venv .venv && .venv/bin/pip install -r requirements.txt");
-        step += 1;
-    }
-
-    if has_js_ts {
-        println!("  {}.  npm dev", step);
+    for (i, step) in steps.iter().enumerate() {
+        println!("  {}.  {}", i + 1, step);
     }
 
     cliclack::outro("Happy coding!")?;

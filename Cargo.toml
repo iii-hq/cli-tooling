@@ -1,18 +1,18 @@
-[package]
-name = "motia-cli"
+[workspace]
+resolver = "2"
+members = [
+    "crates/scaffolder-core",
+    "crates/motia-cli",
+    "crates/iii-cli",
+]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
-description = "CLI for scaffolding Motia projects with iii integration"
 authors = ["Motia Dev Team"]
 
-[profile.release]
-opt-level = "z"     # Optimize for size
-lto = true          # Enable Link Time Optimization
-codegen-units = 1   # Reduce parallel code generation units
-strip = true        # Strip symbols from binary (Rust 1.59+)
-
-[dependencies]
-# Interactive prompts (Charm-style)
+[workspace.dependencies]
+# Interactive prompts (Charm-style) - optional for TUI feature
 cliclack = "0.3"
 console = "0.15"
 
@@ -54,5 +54,11 @@ zip = "2"
 # Open URLs in browser
 open = "5"
 
-[dev-dependencies]
-url = "2"
+# Local crates
+scaffolder-core = { path = "crates/scaffolder-core" }
+
+[profile.release]
+opt-level = "z"     # Optimize for size
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Reduce parallel code generation units
+strip = true        # Strip symbols from binary (Rust 1.59+)
