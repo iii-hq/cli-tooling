@@ -1,0 +1,23 @@
+name: Quickstart
+description: Learn III SDK basics with a TypeScript client, Python data-service, and Rust compute-service
+version: "0.1.0"
+
+# Languages that must be included (user cannot deselect)
+requires:
+  - typescript
+
+# Languages that can optionally be included
+optional:
+  - python
+  - rust
+
+# Explicit list of files to copy (shared_files from root are added automatically)
+files:
+  - package.json
+  - tsconfig.json
+  - iii-config.yaml
+  - requirements.txt
+  - services/client/worker.ts
+  - services/data-service/data_service.py
+  - services/compute-service/Cargo.toml
+  - services/compute-service/src/main.rs
