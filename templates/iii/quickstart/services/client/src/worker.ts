@@ -86,7 +86,7 @@ registerFunction({ id: "client.orchestrate" }, async (payload) => {
 registerTrigger({
   trigger_type: "api",
   function_id: "client.orchestrate",
-  config: { api_path: "orchestrate", http_method: "GET" },
+  config: { api_path: "orchestrate", http_method: "POST" },
 });
 
 console.log("Client started - listening for calls");

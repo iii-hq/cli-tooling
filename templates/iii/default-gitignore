@@ -152,7 +152,6 @@ activemq-data/
 *.sage.py
 
 # Environments
-.env
 .envrc
 .venv
 env/
@@ -287,7 +286,6 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variable files
-.env
 .env.*
 !.env.example
 
@@ -385,5 +383,3 @@ target
 
 .vscode
 .mypy*
-test*
-

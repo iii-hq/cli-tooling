@@ -2,7 +2,7 @@
 
 This is the iii quickstart project, it's intended to demonstrate how iii works, teach the basics of using iii, and show the power of having a central coordinator.
 
-One of the first the first things you might notice is that the services/ folder contains `client` and `payment-service` TypeScript projects, a Rust `compute-service`, and a Python `data-service`. For demonstration these services are all in the same project. The languages for each service, and project structure are chosen only for the convenience of demonstration.
+One of the first things you might notice is that the services/ folder contains `client` and `payment-service` TypeScript projects, a Rust `compute-service`, and a Python `data-service`. For demonstration these services are all in the same project. The languages for each service, and project structure are chosen only for the convenience of demonstration.
 
 These services can easily be located in their own projects, written in other languages, or already running on servers which you only have API access to.
 
@@ -58,7 +58,9 @@ npm run dev
 ### 3. Try it out
 
 ```bash
-curl http://localhost:3111/orchestrate
+curl -X POST http://localhost:3111/orchestrate \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"message":"hello from client"},"n":42}'
 ```
 
 If all services are running the output will look like the below:

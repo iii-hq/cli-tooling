@@ -1,5 +1,5 @@
 {
-  "name": "iii-quickstart",
+  "name": "client",
   "version": "0.1.0",
   "description": "An example client or orchestration service",
   "scripts": {

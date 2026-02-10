@@ -2,23 +2,29 @@
 # Demonstrates: registerFunction with Pydantic validation
 
 import asyncio
+import os
 from iii import III, InitOptions, get_context
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 class TransformInput(BaseModel):
     data: dict
 
 iii = III(
-    "ws://localhost:49134",
+    os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"),
     InitOptions(worker_name="data-service")
 )
 
 @iii.function("data-service.transform")
 async def transform_handler(input: dict) -> dict:
     ctx = get_context()
-    validated = TransformInput(**input)
+    try:
+        validated = TransformInput(**input)
+    except ValidationError as e:
+        ctx.logger.error(f"Validation error: {e}")
+        return {"error": "Invalid input", "details": e.errors()}
+
     ctx.logger.info("Processing data with data-service...")
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.5)  # Simulates processing latency
     
     return {
         "transformed": validated.data,

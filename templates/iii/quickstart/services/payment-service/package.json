@@ -1,5 +1,5 @@
 {
-  "name": "iii-quickstart",
+  "name": "payment service",
   "version": "0.1.0",
   "description": "An example 'external' payment service",
   "scripts": {
