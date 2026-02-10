@@ -1,6 +1,7 @@
 # Root template manifest for iii - lists available templates by folder name
 templates:
   - starter
+  - quickstart
 
 # Shared files from root templates/ directory included in every template
 # Supports renaming: source is the file in templates/, dest is the name in each template

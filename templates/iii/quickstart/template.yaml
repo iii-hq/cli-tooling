@@ -13,11 +13,18 @@ optional:
 
 # Explicit list of files to copy (shared_files from root are added automatically)
 files:
-  - package.json
-  - tsconfig.json
+  - README.md
   - iii-config.yaml
-  - requirements.txt
-  - services/client/worker.ts
+  - services/client/package.json
+  - services/client/pnpm-lock.yaml
+  - services/client/tsconfig.json
+  - services/client/src/worker.ts
+  - services/data-service/requirements.txt
   - services/data-service/data_service.py
   - services/compute-service/Cargo.toml
+  - services/compute-service/Cargo.lock
   - services/compute-service/src/main.rs
+  - services/payment-service/package.json
+  - services/payment-service/pnpm-lock.yaml
+  - services/payment-service/tsconfig.json
+  - services/payment-service/src/external-service.ts
