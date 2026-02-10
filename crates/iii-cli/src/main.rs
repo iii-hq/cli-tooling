@@ -47,38 +47,17 @@ impl ProductConfig for IiiConfig {
         "cargo install iii-cli --force"
     }
 
-    fn next_steps(&self, dir: &Path, langs: &[Language]) -> Vec<String> {
+    fn next_steps(&self, dir: &Path, _langs: &[Language]) -> Vec<String> {
         let mut steps = Vec::new();
         let current = std::env::current_dir().ok();
-
-        let has_js_ts = langs
-            .iter()
-            .any(|l| matches!(l, Language::TypeScript | Language::JavaScript));
-        let has_python = langs.contains(&Language::Python);
 
         // Step 1: cd to directory if not current
         if current.as_ref() != Some(&dir.to_path_buf()) {
             steps.push(format!("cd {}", dir.display()));
         }
 
-        // Step 2: Install Node dependencies
-        if has_js_ts {
-            steps.push("npm install".to_string());
-        }
-
-        // Step 3: Set up Python environment
-        if has_python {
-            steps.push(
-                "Set up Python environment:\n\
-                      uv venv && uv pip install -r requirements.txt\n\
-                      -- or --\n\
-                      python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
-                    .to_string(),
-            );
-        }
-
-        // Step 4: Run iii
-        steps.push("iii".to_string());
+        // Step 2: Open README for instructions
+        steps.push("Open README.md to get started".to_string());
 
         steps
     }

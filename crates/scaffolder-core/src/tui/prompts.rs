@@ -363,6 +363,7 @@ fn parse_language(s: &str) -> Option<check::Language> {
         "typescript" | "ts" => Some(check::Language::TypeScript),
         "javascript" | "js" => Some(check::Language::JavaScript),
         "python" | "py" => Some(check::Language::Python),
+        "rust" | "rs" => Some(check::Language::Rust),
         _ => None,
     }
 }
@@ -393,6 +394,13 @@ fn select_languages(
         required_languages.push(check::Language::Python);
     } else if manifest.is_optional("python") {
         optional_languages.push(check::Language::Python);
+    }
+
+    // Categorize Rust
+    if manifest.is_required("rust") {
+        required_languages.push(check::Language::Rust);
+    } else if manifest.is_optional("rust") {
+        optional_languages.push(check::Language::Rust);
     }
 
     // Show required languages

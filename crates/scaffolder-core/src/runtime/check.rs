@@ -10,6 +10,7 @@ pub enum Language {
     TypeScript,
     JavaScript,
     Python,
+    Rust,
 }
 
 impl Language {
@@ -18,6 +19,7 @@ impl Language {
             Language::TypeScript => "TypeScript",
             Language::JavaScript => "JavaScript",
             Language::Python => "Python",
+            Language::Rust => "Rust",
         }
     }
 }
@@ -102,6 +104,27 @@ pub fn check_python() -> RuntimeInfo {
     }
 }
 
+/// Check if Cargo/Rust is available
+pub fn check_cargo() -> RuntimeInfo {
+    let output = Command::new("cargo").arg("--version").output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            RuntimeInfo {
+                name: "Cargo",
+                version: Some(version),
+                available: true,
+            }
+        }
+        _ => RuntimeInfo {
+            name: "Cargo",
+            version: None,
+            available: false,
+        },
+    }
+}
+
 /// Check all required runtimes based on selected languages
 pub fn check_runtimes(languages: &[Language]) -> Result<Vec<RuntimeInfo>> {
     let mut results = Vec::new();
@@ -133,6 +156,16 @@ pub fn check_runtimes(languages: &[Language]) -> Result<Vec<RuntimeInfo>> {
             results.push(python);
         } else {
             missing.push("Python 3 (install from https://python.org)");
+        }
+    }
+
+    // Rust needs cargo
+    if languages.contains(&Language::Rust) {
+        let cargo = check_cargo();
+        if cargo.available {
+            results.push(cargo);
+        } else {
+            missing.push("Cargo/Rust (install from https://rustup.rs)");
         }
     }
 

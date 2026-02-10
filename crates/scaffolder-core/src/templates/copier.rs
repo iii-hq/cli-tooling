@@ -56,6 +56,7 @@ fn should_include_file(
     let has_typescript = selected_languages.contains(&Language::TypeScript);
     let has_javascript = selected_languages.contains(&Language::JavaScript);
     let has_python = selected_languages.contains(&Language::Python);
+    let has_rust = selected_languages.contains(&Language::Rust);
     let has_js_or_ts = has_typescript || has_javascript;
 
     // Check if file matches any pattern from config
@@ -65,6 +66,7 @@ fn should_include_file(
         Some(FileLanguage::TypeScript) => has_typescript,
         Some(FileLanguage::JavaScript) => has_javascript,
         Some(FileLanguage::Node) => has_js_or_ts,
+        Some(FileLanguage::Rust) => has_rust,
         None => false, // File not in any list, exclude
     }
 }

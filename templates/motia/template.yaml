@@ -3,8 +3,8 @@ templates:
   - quickstart
   - blank
 
-# Shared files from root templates/ directory included in every template
-# Supports renaming: source is the file in templates/, dest is the name in each template
+# Shared files from this directory included in every template
+# Supports renaming: source is the file in this directory, dest is the name in each template
 shared_files:
   - source: default-gitignore
     dest: .gitignore
