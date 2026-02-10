@@ -34,20 +34,21 @@ registerTrigger({
 // functions that live in other services and even that use other languages.
 registerFunction({ id: "client.orchestrate" }, async (payload) => {
   const { logger } = getContext();
-  logger.info("Handling request");
+  logger.info("Handling request", { payload: JSON.stringify(payload) });
 
   const results: { client: string; errors: any[]; [key: string]: unknown } = {
     client: "ok",
     errors: [],
   };
 
+  const data = payload.data ?? payload;
   // This is a call to a Python service.
   const dataRequest = call("data-service.transform", {
-    data: payload.data ?? { message: "hello from client" },
+    data: data,
   });
   // This is a call to a Rust service.
   const computeRequest = call("compute-service.compute", {
-    n: payload.n ?? 42,
+    n: payload.n,
   });
 
   const [dataResult, computeResult] = await Promise.allSettled([

@@ -22,7 +22,7 @@ language_files:
     - "README*"
     - "LICENSE"
     - "LICENSE*"
-    - "*.config.yaml"
+    - "*-config.yaml"
 
   # Files only included when Python is selected
   python:
