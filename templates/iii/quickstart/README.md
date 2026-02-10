@@ -60,7 +60,7 @@ npm run dev
 ```bash
 curl -X POST http://localhost:3111/orchestrate \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"hello from client"},"n":42}'
+  -d '{"data":{"message":"hello from client"},"n":42}' | jq
 ```
 
 If all services are running the output will look like the below:
@@ -70,18 +70,34 @@ If all services are running the output will look like the below:
   "client": "ok",
   "computeService": { "input": 42, "result": 84, "source": "compute-service" },
   "dataService": {
-    "keys": ["message"],
+    "keys": [
+      "body",
+      "headers",
+      "method",
+      "path",
+      "path_params",
+      "query_params",
+      "trigger"
+    ],
     "source": "data-service",
-    "transformed": { "message": "hello from client" }
+    "transformed": {
+      "body": { "data": { "message": "hello from client" }, "n": 42 },
+      "headers": "...",
+      "method": "POST",
+      "path": "orchestrate",
+      "trigger": "..."
+    }
   },
+  "errors": [],
   "externalService": {
     "body": { "message": "Payment recorded" },
     "source": "payment-service",
     "status": 200
-  },
-  "errors": []
+  }
 }
 ```
+
+Congratulations! This project executed functions across 3 languages, 4 service boundaries, with complete observability, and automatic asynchronous retries.
 
 ## Architecture
 
