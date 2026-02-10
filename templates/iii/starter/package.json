@@ -7,7 +7,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@iii-dev/core": "latest"
+    "@iii-dev/sdk": "latest"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

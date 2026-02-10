@@ -58,3 +58,9 @@ language_files:
     - ".npmrc"
     - ".nvmrc"
     - ".node-version"
+
+  # Files only included when Rust is selected
+  rust:
+    - "Cargo.toml"
+    - "Cargo.lock"
+    - "*.rs"
