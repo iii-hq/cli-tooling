@@ -2,13 +2,15 @@ name: Quickstart
 description: Learn the iii basics while orchestrating services
 version: "0.1.0"
 
-# With treat_required_as_suggested: shown as "Suggested", pre-selected but deselectable,
-# and runtime checks become advisory (indicate availability, no hard fail)
-requires:
+# Always included: in multiselect with "(always included)", re-added if deselected
+always_include:
   - typescript
+
+# Shown as "Suggested", pre-selected, deselectable; runtime checks advisory
+treat_required_as_suggested: true
+requires:
   - python
   - rust
-treat_required_as_suggested: true
 optional: []
 
 # Explicit list of files to copy (shared_files from root are added automatically)
