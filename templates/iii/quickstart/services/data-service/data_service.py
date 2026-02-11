@@ -33,7 +33,7 @@ async def transform_handler(input: dict) -> dict:
         "source": "data-service"
     }
 
-register_function("data-service::transform", transform_handler)
+iii.register_function("data-service::transform", transform_handler)
 
 async def main():
     await iii.connect()

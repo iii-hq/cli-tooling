@@ -2,9 +2,11 @@
 
 This is the iii quickstart project, it's intended to demonstrate how iii works, teach the basics of using iii, and show the power of having a central coordinator.
 
-One of the first things you might notice is that the services/ folder contains `client` and `payment-service` TypeScript projects, a Rust `compute-service`, and a Python `data-service`. For demonstration these services are all in the same project. The languages for each service, and project structure are chosen only for the convenience of demonstration.
+One of the first things you might notice is that the `services/` folder contains `client` and `payment-service` TypeScript projects, a Rust `compute-service`, and a Python `data-service`. For demonstration these services are all in the same project. The languages for each service, and project structure are chosen only for the convenience of demonstration.
 
 These services can easily be located in their own projects, written in other languages, or already running on servers which you only have API access to.
+
+Check the `services/client/src/worker.ts` file to see how this works. The Node SDK is similar across all languages that iii supports.
 
 ## Prerequisites
 
@@ -29,21 +31,26 @@ iii -c iii-config.yaml
 
 ### 2. Start the services
 
-At a minimum you will need to start the Client and at least one of the other Services to see a result.
-
-**Option A: Docker Compose**
+#### Option A: Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-Services connect to the iii engine on the host via `host.docker.internal`. Ensure the iii engine WebSocket (port 49134) accepts connections from outside localhost if needed—see iii docs for binding configuration.
+This will start the complete service architecture.
 
-**Option B: Run each in a separate terminal**
+#### Option B: Run each in a separate terminal
+
+While it's not necessary to start all services at least Client and Payment Service need to be running.
 
 ```bash
 # Client (TypeScript orchestrator)
 cd services/client
+npm install
+npm run dev
+
+# Payment Service (TypeScript)
+cd services/payment-service
 npm install
 npm run dev
 
@@ -57,11 +64,6 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 python data_service.py
-
-# Payment Service (TypeScript)
-cd services/payment-service
-npm install
-npm run dev
 ```
 
 ### 3. Try it out
@@ -107,6 +109,10 @@ If all services are running the output will look like the below. If some service
 ```
 
 Congratulations! This project executed functions across 3 languages, 4 service boundaries, with complete observability, and automatic asynchronous retries.
+
+## Review the code
+
+Look at `worker.ts` for a full explanation of how this worked.
 
 ## Architecture
 

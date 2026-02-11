@@ -7,6 +7,15 @@ const { registerFunction, registerTrigger, call } = init(
   process.env.III_BRIDGE_URL ?? "ws://localhost:49134",
 );
 
+// In iii all services behave as a single application so it is
+// possible to set state in one service and retrieve it in another.
+const WORKER_VERSION = 1;
+await call("state::set", {
+  scope: "global",
+  key: "WORKER_VERSION",
+  value: WORKER_VERSION,
+});
+
 // registerFunction is used to declare functionality to the iii engine.
 // Once registered any other process connect to the engine can call this function.
 // registerFunction use registerTrigger internally to make a function callable.
@@ -20,7 +29,7 @@ const health = registerFunction({ id: "client::health" }, async () => {
 // of callables such as an http endpoint, or a cron job.
 registerTrigger({
   trigger_type: "api",
-  function_id: health.id,
+  function_id: health.id, // This is just the string from registerFunction, ie. "client::health"
   config: { api_path: "health", http_method: "GET" },
 });
 
