@@ -72,7 +72,7 @@ curl -X POST http://localhost:3111/orchestrate \
   -d '{"data":{"message":"hello from client"},"n":42}' | jq
 ```
 
-If all services are running the output will look like the below:
+If all services are running the output will look like the below. If some services aren't the application will still run the available services and there will be error reports both in the JSON returned and on the iii console output.
 
 ```json
 {
