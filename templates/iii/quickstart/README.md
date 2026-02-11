@@ -15,8 +15,9 @@ These services can easily be located in their own projects, written in other lan
 
 ### Optional
 
-- **Python 3** (for data-service)
-- **Rust/Cargo** (for compute-service)
+- **Docker** (to run services via `docker compose`—see step 2)
+- **Python 3** (for data-service when running natively)
+- **Rust/Cargo** (for compute-service when running natively)
 
 ## Quick Start
 
@@ -30,7 +31,15 @@ iii -c iii-config.yaml
 
 At a minimum you will need to start the Client and at least one of the other Services to see a result.
 
-Run each in a separate terminal:
+**Option A: Docker Compose**
+
+```bash
+docker compose up --build
+```
+
+Services connect to the iii engine on the host via `host.docker.internal`. Ensure the iii engine WebSocket (port 49134) accepts connections from outside localhost if needed—see iii docs for binding configuration.
+
+**Option B: Run each in a separate terminal**
 
 ```bash
 # Client (TypeScript orchestrator)
