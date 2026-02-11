@@ -23,6 +23,8 @@ async def transform_handler(input: dict) -> dict:
     except ValidationError as e:
         ctx.logger.error(f"Validation error: {e}")
         return {"error": "Invalid input", "details": e.errors()}
+    
+    worker_version = iii.call("state.get", {scope: "shared", key: "WORKER_VERSION"})
 
     ctx.logger.info("Processing data with data-service...")
     await asyncio.sleep(0.5)  # Simulates processing latency
@@ -30,7 +32,8 @@ async def transform_handler(input: dict) -> dict:
     return {
         "transformed": validated.data,
         "keys": list(validated.data.keys()),
-        "source": "data-service"
+        "source": "data-service",
+        "worker-version": f"worker version {worker_version}"
     }
 
 iii.register_function("data-service::transform", transform_handler)

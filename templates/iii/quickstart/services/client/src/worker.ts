@@ -8,10 +8,10 @@ const { registerFunction, registerTrigger, call } = init(
 );
 
 // In iii all services behave as a single application so it is
-// possible to set state in one service and retrieve it in another.
+// possible to set scoped state in one service and retrieve it in another.
 const WORKER_VERSION = 1;
 await call("state.set", {
-  group_id: "global",
+  group_id: "shared",
   item_id: "WORKER_VERSION",
   data: WORKER_VERSION,
 });
