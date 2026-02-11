@@ -1,13 +1,14 @@
 {
   "name": "client",
   "version": "0.1.0",
+  "type": "module",
   "description": "An example client or orchestration service",
   "scripts": {
     "dev": "npx tsx --watch src/worker.ts",
     "build": "tsc"
   },
   "dependencies": {
-    "iii-sdk": "latest"
+    "iii-sdk": "^0.0.4"
   },
   "devDependencies": {
     "@types/node": "^25.2.2",

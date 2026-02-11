@@ -10,10 +10,10 @@ const { registerFunction, registerTrigger, call } = init(
 // In iii all services behave as a single application so it is
 // possible to set state in one service and retrieve it in another.
 const WORKER_VERSION = 1;
-await call("state::set", {
-  scope: "global",
-  key: "WORKER_VERSION",
-  value: WORKER_VERSION,
+await call("state.set", {
+  group_id: "global",
+  item_id: "WORKER_VERSION",
+  data: WORKER_VERSION,
 });
 
 // registerFunction is used to declare functionality to the iii engine.
