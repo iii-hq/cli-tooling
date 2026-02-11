@@ -10,12 +10,12 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$REPO_ROOT"
 
 # Build motia template zips
-if [ -f "target/release/motia-cli" ]; then
-    ./target/release/motia-cli build-zips --template-dir=./templates/motia
-elif [ -f "target/debug/motia-cli" ]; then
-    ./target/debug/motia-cli build-zips --template-dir=./templates/motia
+if [ -f "target/release/motia-create" ]; then
+    ./target/release/motia-create build-zips --template-dir=./templates/motia
+elif [ -f "target/debug/motia-create" ]; then
+    ./target/debug/motia-create build-zips --template-dir=./templates/motia
 else
-    cargo run --quiet -p motia-cli -- build-zips --template-dir=./templates/motia
+    cargo run --quiet -p motia-create -- build-zips --template-dir=./templates/motia
 fi
 
 # Build iii template zips

@@ -1,5 +1,5 @@
 [package]
-name = "iii-cli"
+name = "iii-create"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

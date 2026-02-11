@@ -24,13 +24,13 @@ jobs:
         uses: dtolnay/rust-action@stable
 
       - name: Build motia CLI
-        run: cargo build --release -p motia-cli
+        run: cargo build --release -p motia-create
 
       - name: Build iii CLI
-        run: cargo build --release -p iii-cli
+        run: cargo build --release -p iii-create
 
       - name: Build motia template zips
-        run: ./target/release/motia build-zips --template-dir=./templates/motia
+        run: ./target/release/motia-create build-zips --template-dir=./templates/motia
 
       - name: Build iii template zips
         run: ./target/release/iii-create build-zips --template-dir=./templates/iii

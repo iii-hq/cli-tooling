@@ -1,4 +1,4 @@
-//! iii CLI - Project scaffolding for iii workflows
+//! Motia CLI - Project scaffolding for Motia workflows
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -10,25 +10,25 @@ use std::path::{Path, PathBuf};
 /// CLI version
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// iii product configuration
+/// Motia product configuration
 #[derive(Clone)]
-pub struct IiiConfig;
+pub struct MotiaConfig;
 
-impl ProductConfig for IiiConfig {
+impl ProductConfig for MotiaConfig {
     fn name(&self) -> &'static str {
-        "iii"
+        "motia"
     }
 
     fn display_name(&self) -> &'static str {
-        "iii"
+        "Motia"
     }
 
     fn default_template_url(&self) -> &'static str {
-        "https://api.github.com/repos/MotiaDev/motia-cli/contents/templates/iii"
+        "https://api.github.com/repos/MotiaDev/motia-cli/contents/templates/motia"
     }
 
     fn template_url_env(&self) -> &'static str {
-        "III_TEMPLATE_URL"
+        "MOTIA_TEMPLATE_URL"
     }
 
     fn requires_iii(&self) -> bool {
@@ -36,36 +36,62 @@ impl ProductConfig for IiiConfig {
     }
 
     fn docs_url(&self) -> &'static str {
-        "https://iii.dev/docs"
+        "https://motia.dev/docs"
     }
 
     fn cli_description(&self) -> &'static str {
-        "CLI for scaffolding iii projects"
+        "CLI for scaffolding Motia projects with iii integration"
     }
 
     fn upgrade_command(&self) -> &'static str {
-        "cargo install iii-cli --force"
+        "cargo install motia-create --force"
     }
 
-    fn next_steps(&self, dir: &Path, _langs: &[Language]) -> Vec<String> {
+    fn next_steps(&self, dir: &Path, langs: &[Language]) -> Vec<String> {
         let mut steps = Vec::new();
         let current = std::env::current_dir().ok();
 
-        // Step 1: cd to directory if not current
+        let has_js_ts = langs
+            .iter()
+            .any(|l| matches!(l, Language::TypeScript | Language::JavaScript));
+        let has_python = langs.contains(&Language::Python);
+
+        // Step 1: Run iii
+        steps.push("iii -c iii.config.yaml".to_string());
+
+        // Step 2: cd to directory if not current
         if current.as_ref() != Some(&dir.to_path_buf()) {
             steps.push(format!("cd {}", dir.display()));
         }
 
-        // Step 2: Open README for instructions
-        steps.push("Open README.md to get started".to_string());
+        // Step 3: Install Node dependencies
+        if has_js_ts {
+            steps.push("npm install @iii-dev/motia".to_string());
+        }
+
+        // Step 4: Set up Python environment
+        if has_python {
+            steps.push(
+                "Set up Python environment:\n\
+                      uv venv && uv pip install -r requirements.txt\n\
+                      -- or --\n\
+                      python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
+                    .to_string(),
+            );
+        }
+
+        // Step 5: Start dev server
+        if has_js_ts {
+            steps.push("npm dev".to_string());
+        }
 
         steps
     }
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "iii-create")]
-#[command(about = "CLI for scaffolding iii projects")]
+#[command(name = "motia-create")]
+#[command(about = "CLI for scaffolding Motia projects with iii integration")]
 #[command(version)]
 pub struct Args {
     #[command(subcommand)]
@@ -74,7 +100,7 @@ pub struct Args {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// Create a new iii project
+    /// Create a new Motia project
     Create(CliCreateArgs),
     /// Build zip files for all templates in the template directory (for development use)
     BuildZips(BuildZipsArgs),
@@ -144,7 +170,7 @@ async fn main() -> Result<()> {
     .ok();
 
     let args = Args::parse();
-    let config = IiiConfig;
+    let config = MotiaConfig;
 
     // Handle subcommands
     match args.command {
