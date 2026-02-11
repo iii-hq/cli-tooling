@@ -41,14 +41,17 @@ registerFunction({ id: "client.orchestrate" }, async (payload) => {
     errors: [],
   };
 
-  const data = payload.data ?? payload;
+  // Handle both direct function calling and HTTP API calls
+  const body = payload.body ?? payload;
+  const data = body.data ?? body;
+
   // This is a call to a Python service.
   const dataRequest = call("data-service.transform", {
     data: data,
   });
   // This is a call to a Rust service.
   const computeRequest = call("compute-service.compute", {
-    n: payload.n,
+    n: body.n,
   });
 
   const [dataResult, computeResult] = await Promise.allSettled([
