@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     iii.connect().await?;
 
-    iii.register_function("compute-service.compute", |input: Value| async move {
+    iii.register_function("compute-service::compute", |input: Value| async move {
         let n = input.get("n").and_then(|v| v.as_u64()).unwrap_or(10);
         tokio::time::sleep(Duration::from_millis(100)).await; // Simulates processing latency
         

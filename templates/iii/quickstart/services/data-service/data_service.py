@@ -14,7 +14,7 @@ iii = III(
     InitOptions(worker_name="data-service")
 )
 
-@iii.function("data-service.transform")
+@iii.function("data-service::transform")
 async def transform_handler(input: dict) -> dict:
     ctx = get_context()
     try:

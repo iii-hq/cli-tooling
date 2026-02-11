@@ -6,7 +6,7 @@ const { registerFunction } = init(
   process.env.III_BRIDGE_URL ?? "ws://localhost:49134",
 );
 
-registerFunction({ id: "payment-service.record" }, async (payload) => {
+registerFunction({ id: "payment-service::record" }, async (payload) => {
   // A real service would be defined like this.
   // const result = await fetch("https://example.com/v1/payments/record", {
   //   method: "POST",
