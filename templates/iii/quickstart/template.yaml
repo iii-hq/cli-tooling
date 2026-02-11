@@ -2,14 +2,14 @@ name: Quickstart
 description: Learn the iii basics while orchestrating services
 version: "0.1.0"
 
-# Languages that must be included (user cannot deselect)
+# With treat_required_as_suggested: shown as "Suggested", pre-selected but deselectable,
+# and runtime checks become advisory (indicate availability, no hard fail)
 requires:
   - typescript
-
-# Languages that can optionally be included
-optional:
   - python
   - rust
+treat_required_as_suggested: true
+optional: []
 
 # Explicit list of files to copy (shared_files from root are added automatically)
 files:

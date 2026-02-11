@@ -125,10 +125,20 @@ pub fn check_cargo() -> RuntimeInfo {
     }
 }
 
-/// Check all required runtimes based on selected languages
+/// Check runtimes with no advisory languages (strict mode - fail on any missing).
 pub fn check_runtimes(languages: &[Language]) -> Result<Vec<RuntimeInfo>> {
+    check_runtimes_with_advisory(languages, &[])
+}
+
+/// Check runtimes; languages in `advisory` get availability reported but don't cause failure.
+pub fn check_runtimes_with_advisory(
+    languages: &[Language],
+    advisory: &[Language],
+) -> Result<Vec<RuntimeInfo>> {
     let mut results = Vec::new();
     let mut missing = Vec::new();
+
+    let is_advisory = |lang: &Language| advisory.contains(lang);
 
     // TypeScript and JavaScript both need Node.js or Bun
     let needs_js_runtime = languages
@@ -138,32 +148,50 @@ pub fn check_runtimes(languages: &[Language]) -> Result<Vec<RuntimeInfo>> {
     if needs_js_runtime {
         let bun = check_bun();
         let node = check_node();
+        let js_advisory = languages
+            .iter()
+            .any(|l| matches!(l, Language::TypeScript | Language::JavaScript) && is_advisory(l));
 
-        // Prefer Bun, fall back to Node.js
         if bun.available {
             results.push(bun);
         } else if node.available {
             results.push(node);
+        } else if js_advisory {
+            results.push(RuntimeInfo {
+                name: "Node.js or Bun",
+                version: None,
+                available: false,
+            });
         } else {
             missing.push("Node.js or Bun (install from https://nodejs.org or https://bun.sh)");
         }
     }
 
-    // Python needs python3
     if languages.contains(&Language::Python) {
         let python = check_python();
         if python.available {
             results.push(python);
+        } else if is_advisory(&Language::Python) {
+            results.push(RuntimeInfo {
+                name: "Python 3",
+                version: None,
+                available: false,
+            });
         } else {
             missing.push("Python 3 (install from https://python.org)");
         }
     }
 
-    // Rust needs cargo
     if languages.contains(&Language::Rust) {
         let cargo = check_cargo();
         if cargo.available {
             results.push(cargo);
+        } else if is_advisory(&Language::Rust) {
+            results.push(RuntimeInfo {
+                name: "Cargo",
+                version: None,
+                available: false,
+            });
         } else {
             missing.push("Cargo/Rust (install from https://rustup.rs)");
         }

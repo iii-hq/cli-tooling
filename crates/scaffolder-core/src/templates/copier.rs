@@ -95,6 +95,7 @@ mod tests {
             ],
             javascript: vec!["*.step.js".to_string(), "*.step.jsx".to_string()],
             node: vec!["package.json".to_string()],
+            rust: vec![],
         }
     }
 
