@@ -1,5 +1,5 @@
 name: Quickstart
-description: Learn III SDK basics with a TypeScript client, Python data-service, and Rust compute-service
+description: Learn the iii basics while orchestrating services
 version: "0.1.0"
 
 # Languages that must be included (user cannot deselect)
@@ -25,3 +25,9 @@ files:
   - services/payment-service/package.json
   - services/payment-service/tsconfig.json
   - services/payment-service/src/external-service.ts
+  - docker-compose.yaml
+  - services/client/Dockerfile
+  - services/compute-service/Dockerfile
+  - services/compute-service/.dockerignore
+  - services/data-service/Dockerfile
+  - services/payment-service/Dockerfile
