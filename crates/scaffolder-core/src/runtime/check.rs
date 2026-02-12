@@ -148,9 +148,12 @@ pub fn check_runtimes_with_advisory(
     if needs_js_runtime {
         let bun = check_bun();
         let node = check_node();
-        let js_advisory = languages
+        let js_ts_langs: Vec<_> = languages
             .iter()
-            .any(|l| matches!(l, Language::TypeScript | Language::JavaScript) && is_advisory(l));
+            .filter(|l| matches!(l, Language::TypeScript | Language::JavaScript))
+            .collect();
+        let js_advisory =
+            !js_ts_langs.is_empty() && js_ts_langs.iter().all(|l| is_advisory(l));
 
         let any_js_available = bun.available || node.available;
         if bun.available {

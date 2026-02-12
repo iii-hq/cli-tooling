@@ -24,7 +24,7 @@ impl ProductConfig for MotiaConfig {
     }
 
     fn default_template_url(&self) -> &'static str {
-        "https://api.github.com/repos/MotiaDev/motia-cli/contents/templates/motia"
+        "https://api.github.com/repos/MotiaDev/cli-tooling/contents/templates/motia"
     }
 
     fn template_url_env(&self) -> &'static str {

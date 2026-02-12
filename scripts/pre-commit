@@ -1,5 +1,5 @@
 #!/bin/bash
-# Git pre-commit hook for motia-cli-rust
+# Git pre-commit hook for motia-tools-rust
 # Automatically rebuilds template zips when template files change
 
 # Get the repo root
