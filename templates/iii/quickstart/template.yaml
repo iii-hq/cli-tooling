@@ -12,7 +12,6 @@ optional: []
 
 # Explicit list of files to copy (shared_files from root are added automatically)
 files:
-  - package.json
   - README.md
   - iii-config.yaml
   - services/client/package.json
