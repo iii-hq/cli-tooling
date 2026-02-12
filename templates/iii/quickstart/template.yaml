@@ -6,8 +6,8 @@ version: "0.1.0"
 always_include:
   - typescript
 
-# Shown as "Suggested", pre-selected, deselectable; runtime checks advisory
-treat_required_as_suggested: true
+# Shown as "Included", always selected (not deselectable); runtime checks advisory
+treat_required_as_included: true
 requires:
   - python
   - rust

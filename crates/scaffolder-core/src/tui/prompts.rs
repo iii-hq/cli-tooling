@@ -76,7 +76,7 @@ pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &s
     // Step 5: Select languages
     let selected_languages = select_languages(&manifest, &args)?;
 
-    // Step 6: Check runtimes (advisory = suggested languages that don't cause hard fail)
+    // Step 6: Check runtimes (advisory = included languages that don't cause hard fail)
     check_runtimes(&manifest, &selected_languages)?;
 
     // Step 7: Create project
@@ -381,10 +381,10 @@ fn select_languages(
         always_include.iter().copied().collect();
 
     let mut required_languages: Vec<check::Language> = Vec::new();
-    let mut suggested_languages: Vec<check::Language> = Vec::new();
+    let mut included_languages: Vec<check::Language> = Vec::new();
     let mut optional_languages: Vec<check::Language> = Vec::new();
 
-    let treat_as_suggested = manifest.treat_required_as_suggested;
+    let treat_as_included = manifest.treat_required_as_included;
 
     for (lang_str, lang) in [
         ("typescript", check::Language::TypeScript),
@@ -396,8 +396,8 @@ fn select_languages(
             continue; // Handled separately
         }
         if manifest.is_required(lang_str) {
-            if treat_as_suggested {
-                suggested_languages.push(lang);
+            if treat_as_included {
+                included_languages.push(lang);
             } else {
                 required_languages.push(lang);
             }
@@ -414,17 +414,17 @@ fn select_languages(
         let names: Vec<&str> = required_languages.iter().map(|l| l.display_name()).collect();
         cliclack::log::info(format!("Required: {}", names.join(", ")))?;
     }
-    if !suggested_languages.is_empty() {
-        let names: Vec<&str> = suggested_languages.iter().map(|l| l.display_name()).collect();
-        cliclack::log::info(format!("Suggested: {}", names.join(", ")))?;
+    if !included_languages.is_empty() {
+        let names: Vec<&str> = included_languages.iter().map(|l| l.display_name()).collect();
+        cliclack::log::info(format!("Included: {}", names.join(", ")))?;
     }
 
     let mut selected_languages = required_languages.clone();
+    selected_languages.extend(included_languages.iter().copied());
     selected_languages.extend(always_include.iter().copied());
 
     let selectable: Vec<check::Language> = always_include
         .iter()
-        .chain(suggested_languages.iter())
         .chain(optional_languages.iter())
         .copied()
         .collect();
@@ -454,7 +454,7 @@ fn select_languages(
                 .collect();
             selected_languages.extend(to_add);
         } else {
-            let prompt = if suggested_languages.is_empty() && optional_languages.is_empty() {
+            let prompt = if included_languages.is_empty() && optional_languages.is_empty() {
                 "Select languages"
             } else if always_include.is_empty() {
                 "Select additional languages (optional)"
@@ -463,11 +463,7 @@ fn select_languages(
             };
             let mut multi = cliclack::multiselect(prompt);
 
-            let initial: Vec<check::Language> = always_include
-                .iter()
-                .chain(suggested_languages.iter())
-                .copied()
-                .collect();
+            let initial: Vec<check::Language> = always_include.iter().copied().collect();
 
             for lang in &selectable {
                 let hint = if always_include_set.contains(lang) {
@@ -484,6 +480,11 @@ fn select_languages(
                 .interact()?;
 
             for lang in &always_include {
+                if !selected.contains(lang) {
+                    selected.push(*lang);
+                }
+            }
+            for lang in &included_languages {
                 if !selected.contains(lang) {
                     selected.push(*lang);
                 }
@@ -510,7 +511,7 @@ fn check_runtimes(
     selected_languages: &[check::Language],
 ) -> Result<()> {
     let mut advisory: Vec<check::Language> = manifest
-        .suggested_language_names()
+        .included_language_names()
         .iter()
         .filter_map(|s| parse_language(s))
         .filter(|l| selected_languages.contains(l))

@@ -94,6 +94,9 @@ const orchestrate = registerFunction(
       results.errors.push(error);
     }
 
+    results.success =
+      "Success! Open worker.ts to see how this all worked or visit https://iii.dev/docs/concepts to learn more about the concepts powering iii";
+
     return { status: results.errors.length > 0 ? 500 : 200, body: results };
   },
 );

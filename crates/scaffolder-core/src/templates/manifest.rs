@@ -153,10 +153,10 @@ pub struct TemplateManifest {
     #[serde(default)]
     pub optional: Vec<String>,
 
-    /// When true, "required" languages become "suggested": user can deselect,
+    /// When true, "required" languages become "included": always selected (not deselectable),
     /// and runtime checks become advisory (indicate availability, no hard fail)
     #[serde(default)]
-    pub treat_required_as_suggested: bool,
+    pub treat_required_as_included: bool,
 
     /// Languages always copied (shown in multiselect with hint; re-added if deselected)
     #[serde(default)]
@@ -185,10 +185,10 @@ impl TemplateManifest {
             .any(|o| o.eq_ignore_ascii_case(language))
     }
 
-    /// When treat_required_as_suggested is true, required languages become suggested
-    /// (deselectable, advisory runtime check). Returns names of those languages.
-    pub fn suggested_language_names(&self) -> Vec<&str> {
-        if self.treat_required_as_suggested {
+    /// When treat_required_as_included is true, required languages become included
+    /// (always selected, advisory runtime check). Returns names of those languages.
+    pub fn included_language_names(&self) -> Vec<&str> {
+        if self.treat_required_as_included {
             self.requires.iter().map(String::as_str).collect()
         } else {
             Vec::new()

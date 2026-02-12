@@ -17,7 +17,7 @@ Check the `services/client/src/worker.ts` file to see how this works. The Node S
 
 ### Optional
 
-- **Docker** (to run services via `docker compose`—see step 2)
+- **Docker** (to run services via `docker compose` see step 2)
 - **Python 3** (for data-service when running natively)
 - **Rust/Cargo** (for compute-service when running natively)
 
