@@ -11,9 +11,9 @@ const { registerFunction, registerTrigger, call } = init(
 // possible to set scoped state in one service and retrieve it in another.
 const WORKER_VERSION = 1;
 await call("state.set", {
-  group_id: "shared",
-  item_id: "WORKER_VERSION",
-  data: WORKER_VERSION,
+  scope: "shared",
+  key: "WORKER_VERSION",
+  value: WORKER_VERSION,
 });
 
 // registerFunction is used to declare functionality to the iii engine.

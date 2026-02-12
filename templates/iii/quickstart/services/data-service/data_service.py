@@ -16,15 +16,15 @@ iii = III(
 
 # Decorators are available
 # @iii.register_function("data-service::transform")
-async def transform_handler(input: dict) -> dict:
+async def transform_handler(payload: dict) -> dict:
     ctx = get_context()
     try:
-        validated = TransformInput(**input)
+        validated = TransformInput.model_validate(payload)
     except ValidationError as e:
         ctx.logger.error(f"Validation error: {e}")
-        return {"error": "Invalid input", "details": e.errors()}
+        return {"error": "Invalid payload", "details": e.errors()}
     
-    worker_version = iii.call("state.get", {scope: "shared", key: "WORKER_VERSION"})
+    worker_version = iii.call("state.get", {"scope": "shared", "key": "WORKER_VERSION"})
 
     ctx.logger.info("Processing data with data-service...")
     await asyncio.sleep(0.5)  # Simulates processing latency
