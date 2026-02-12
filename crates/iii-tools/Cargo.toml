@@ -1,12 +1,12 @@
 [package]
-name = "iii-create"
+name = "iii-tools"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description = "CLI for scaffolding iii projects"
 
 [[bin]]
-name = "iii-create"
+name = "iii-tools"
 path = "src/main.rs"
 
 [dependencies]

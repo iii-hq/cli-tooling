@@ -10,21 +10,21 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$REPO_ROOT"
 
 # Build motia template zips
-if [ -f "target/release/motia-create" ]; then
-    ./target/release/motia-create build-zips --template-dir=./templates/motia
-elif [ -f "target/debug/motia-create" ]; then
-    ./target/debug/motia-create build-zips --template-dir=./templates/motia
+if [ -f "target/release/motia-tools" ]; then
+    ./target/release/motia-tools build-zips --template-dir=./templates/motia
+elif [ -f "target/debug/motia-tools" ]; then
+    ./target/debug/motia-tools build-zips --template-dir=./templates/motia
 else
-    cargo run --quiet -p motia-create -- build-zips --template-dir=./templates/motia
+    cargo run --quiet -p motia-tools -- build-zips --template-dir=./templates/motia
 fi
 
 # Build iii template zips
-if [ -f "target/release/iii-create" ]; then
-    ./target/release/iii-create build-zips --template-dir=./templates/iii
-elif [ -f "target/debug/iii-create" ]; then
-    ./target/debug/iii-create build-zips --template-dir=./templates/iii
+if [ -f "target/release/iii-tools" ]; then
+    ./target/release/iii-tools build-zips --template-dir=./templates/iii
+elif [ -f "target/debug/iii-tools" ]; then
+    ./target/debug/iii-tools build-zips --template-dir=./templates/iii
 else
-    cargo run --quiet -p iii-create -- build-zips --template-dir=./templates/iii
+    cargo run --quiet -p iii-tools -- build-zips --template-dir=./templates/iii
 fi
 
 # Stage the zip files for git

@@ -1,12 +1,12 @@
 [package]
-name = "motia-create"
+name = "motia-tools"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description = "CLI for scaffolding Motia projects with iii integration"
 
 [[bin]]
-name = "motia-create"
+name = "motia-tools"
 path = "src/main.rs"
 
 [dependencies]

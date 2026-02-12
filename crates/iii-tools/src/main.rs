@@ -44,7 +44,7 @@ impl ProductConfig for IiiConfig {
     }
 
     fn upgrade_command(&self) -> &'static str {
-        "cargo install iii-create --force"
+        "cargo install iii-tools --force"
     }
 
     fn next_steps(&self, dir: &Path, _langs: &[Language]) -> Vec<String> {
@@ -64,7 +64,7 @@ impl ProductConfig for IiiConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "iii-create")]
+#[command(name = "iii-tools")]
 #[command(about = "CLI for scaffolding iii projects")]
 #[command(version)]
 pub struct Args {

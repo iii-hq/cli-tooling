@@ -44,7 +44,7 @@ impl ProductConfig for MotiaConfig {
     }
 
     fn upgrade_command(&self) -> &'static str {
-        "cargo install motia-create --force"
+        "cargo install motia-tools --force"
     }
 
     fn next_steps(&self, dir: &Path, langs: &[Language]) -> Vec<String> {
@@ -90,7 +90,7 @@ impl ProductConfig for MotiaConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "motia-create")]
+#[command(name = "motia-tools")]
 #[command(about = "CLI for scaffolding Motia projects with iii integration")]
 #[command(version)]
 pub struct Args {

@@ -2,8 +2,8 @@
 resolver = "2"
 members = [
     "crates/scaffolder-core",
-    "crates/motia-create",
-    "crates/iii-create",
+    "crates/motia-tools",
+    "crates/iii-tools",
 ]
 
 [workspace.package]
