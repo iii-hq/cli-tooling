@@ -29,4 +29,3 @@ files:
   - src/typescript.step.ts
   - src/javascript.step.js
   - src/python_step.py
-  - src/tutorial.config.ts
