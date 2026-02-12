@@ -152,18 +152,23 @@ pub fn check_runtimes_with_advisory(
             .iter()
             .any(|l| matches!(l, Language::TypeScript | Language::JavaScript) && is_advisory(l));
 
+        let any_js_available = bun.available || node.available;
         if bun.available {
             results.push(bun);
-        } else if node.available {
+        }
+        if node.available {
             results.push(node);
-        } else if js_advisory {
-            results.push(RuntimeInfo {
-                name: "Node.js or Bun",
-                version: None,
-                available: false,
-            });
-        } else {
-            missing.push("Node.js or Bun (install from https://nodejs.org or https://bun.sh)");
+        }
+        if !any_js_available {
+            if js_advisory {
+                results.push(RuntimeInfo {
+                    name: "Node.js or Bun",
+                    version: None,
+                    available: false,
+                });
+            } else {
+                missing.push("Node.js or Bun (install from https://nodejs.org or https://bun.sh)");
+            }
         }
     }
 

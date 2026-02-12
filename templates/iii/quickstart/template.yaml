@@ -2,15 +2,12 @@ name: Quickstart
 description: Learn the iii basics while orchestrating services
 version: "0.1.0"
 
-# Always included: in multiselect with "(always included)", re-added if deselected
-always_include:
-  - typescript
-
 # Shown as "Included", always selected (not deselectable); runtime checks advisory
 treat_required_as_included: true
 requires:
   - python
   - rust
+  - typescript
 optional: []
 
 # Explicit list of files to copy (shared_files from root are added automatically)

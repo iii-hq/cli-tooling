@@ -155,12 +155,8 @@ pub struct TemplateManifest {
 
     /// When true, "required" languages become "included": always selected (not deselectable),
     /// and runtime checks become advisory (indicate availability, no hard fail)
-    #[serde(default)]
+    #[serde(default, alias = "treat_required_as_suggested")]
     pub treat_required_as_included: bool,
-
-    /// Languages always copied (shown in multiselect with hint; re-added if deselected)
-    #[serde(default)]
-    pub always_include: Vec<String>,
 
     /// Explicit list of files to copy
     pub files: Vec<String>,
@@ -193,10 +189,5 @@ impl TemplateManifest {
         } else {
             Vec::new()
         }
-    }
-
-    /// Languages in always_include (for soft enforcement and advisory runtime checks)
-    pub fn always_include_names(&self) -> &[String] {
-        &self.always_include
     }
 }
