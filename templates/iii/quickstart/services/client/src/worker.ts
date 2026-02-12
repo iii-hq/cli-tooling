@@ -95,7 +95,7 @@ const orchestrate = registerFunction(
     }
 
     results.success =
-      "Success! Open worker.ts to see how this all worked or visit https://iii.dev/docs/concepts to learn more about the concepts powering iii";
+      "Success! Open services/client/src/worker.ts and ./iii-config.yaml to see how this all worked or visit https://iii.dev/docs/concepts to learn more about the concepts powering iii";
 
     return { status: results.errors.length > 0 ? 500 : 200, body: results };
   },
