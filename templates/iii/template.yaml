@@ -8,6 +8,8 @@ templates:
 shared_files:
   - source: default-gitignore
     dest: .gitignore
+  - source: default-iii-config
+    dest: iii-config.yaml
 
 # Global language-specific file patterns
 # These determine which files are included based on selected languages
