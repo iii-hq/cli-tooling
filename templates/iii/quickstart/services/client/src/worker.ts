@@ -10,7 +10,7 @@ const { registerFunction, registerTrigger, call } = init(
 // In iii all services behave as a single application so it is
 // possible to set scoped state in one service and retrieve it in another.
 const WORKER_VERSION = 1;
-await call("state.set", {
+await call("state::set", {
   scope: "shared",
   key: "WORKER_VERSION",
   value: WORKER_VERSION,
@@ -28,7 +28,7 @@ const health = registerFunction({ id: "client::health" }, async () => {
 // registerTrigger can also be used independently to create other kinds
 // of callables such as an http endpoint, or a cron job.
 registerTrigger({
-  trigger_type: "api",
+  trigger_type: "http",
   function_id: health.id, // This is just the string from registerFunction, ie. "client::health"
   config: { api_path: "health", http_method: "GET" },
 });
@@ -36,7 +36,7 @@ registerTrigger({
 registerTrigger({
   trigger_type: "cron",
   function_id: health.id,
-  config: { expression: "0 */1 * * * *" },
+  config: { expression: "0 */1 * * * * *" },
 });
 
 // The advantage of this structure is that this code can directly call
@@ -56,15 +56,16 @@ const orchestrate = registerFunction(
     const body = payload.body ?? payload;
     const data = body.data ?? body;
 
-    // This is a call to a Python service.
+    // This is an async call to a Python service.
     const dataRequest = call("data-service::transform", {
       data: data,
     });
-    // This is a call to a Rust service.
+    // This is an async call to a Rust service.
     const computeRequest = call("compute-service::compute", {
       n: body.n,
     });
 
+    // Results behave like native functions, here Promises are returned.
     const [dataResult, computeResult] = await Promise.allSettled([
       dataRequest,
       computeRequest,
@@ -103,7 +104,7 @@ const orchestrate = registerFunction(
 
 // And now this is creating a callable http endpoint.
 registerTrigger({
-  trigger_type: "api",
+  trigger_type: "http",
   function_id: orchestrate.id,
   config: { api_path: "orchestrate", http_method: "POST" },
 });

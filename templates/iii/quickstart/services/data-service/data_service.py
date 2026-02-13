@@ -24,7 +24,7 @@ async def transform_handler(payload: dict) -> dict:
         ctx.logger.error(f"Validation error: {e}")
         return {"error": "Invalid payload", "details": e.errors()}
     
-    worker_version = await iii.call("state.get", {"scope": "shared", "key": "WORKER_VERSION"})
+    worker_version = await iii.call("state::get", {"scope": "shared", "key": "WORKER_VERSION"})
 
     ctx.logger.info("Processing data with data-service...")
     await asyncio.sleep(0.5)  # Simulates processing latency
