@@ -36,7 +36,7 @@ registerTrigger({
 registerTrigger({
   type: "cron",
   function_id: health.id,
-  config: { expression: "0/30 * * * * * *" }, // Cron jobs in iii support seconds, this executes every 30 seconds
+  config: { expression: "*/30 * * * * * *" }, // Cron jobs in iii support seconds, this executes every 30 seconds
 });
 
 // The advantage of this structure is that this code can directly call
