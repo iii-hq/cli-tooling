@@ -24,6 +24,10 @@ pub struct LanguageFiles {
     /// Files that require either JavaScript or TypeScript
     #[serde(default)]
     pub node: Vec<String>,
+
+    /// Files that require Rust to be selected
+    #[serde(default)]
+    pub rust: Vec<String>,
 }
 
 impl LanguageFiles {
@@ -34,6 +38,7 @@ impl LanguageFiles {
         self.typescript.extend(other.typescript.iter().cloned());
         self.javascript.extend(other.javascript.iter().cloned());
         self.node.extend(other.node.iter().cloned());
+        self.rust.extend(other.rust.iter().cloned());
     }
 
     /// Check if a filename matches any pattern in a list
@@ -74,6 +79,9 @@ impl LanguageFiles {
         if Self::matches_any(filename, &self.node) {
             return Some(FileLanguage::Node);
         }
+        if Self::matches_any(filename, &self.rust) {
+            return Some(FileLanguage::Rust);
+        }
 
         None // Not in any list, exclude by default
     }
@@ -87,6 +95,7 @@ pub enum FileLanguage {
     TypeScript,
     JavaScript,
     Node, // Either JS or TS
+    Rust,
 }
 
 /// A shared file from the root templates directory that gets bundled into every template
@@ -144,6 +153,11 @@ pub struct TemplateManifest {
     #[serde(default)]
     pub optional: Vec<String>,
 
+    /// When true, "required" languages become "included": always selected (not deselectable),
+    /// and runtime checks become advisory (indicate availability, no hard fail)
+    #[serde(default, alias = "treat_required_as_suggested")]
+    pub treat_required_as_included: bool,
+
     /// Explicit list of files to copy
     pub files: Vec<String>,
 
@@ -165,5 +179,15 @@ impl TemplateManifest {
         self.optional
             .iter()
             .any(|o| o.eq_ignore_ascii_case(language))
+    }
+
+    /// When treat_required_as_included is true, required languages become included
+    /// (always selected, advisory runtime check). Returns names of those languages.
+    pub fn included_language_names(&self) -> Vec<&str> {
+        if self.treat_required_as_included {
+            self.requires.iter().map(String::as_str).collect()
+        } else {
+            Vec::new()
+        }
     }
 }

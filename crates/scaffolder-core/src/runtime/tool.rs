@@ -185,7 +185,7 @@ pub fn iii_tool() -> ToolManager {
     ToolManager::new(ToolConfig {
         name: "iii",
         display_name: "iii",
-        install_script_url: "https://iii.sh/install.sh",
+        install_script_url: "https://install.iii.dev/latest.sh",
         docs_url: "https://iii.dev/docs",
     })
 }

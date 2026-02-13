@@ -76,8 +76,8 @@ pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &s
     // Step 5: Select languages
     let selected_languages = select_languages(&manifest, &args)?;
 
-    // Step 6: Check runtimes
-    check_runtimes(&selected_languages)?;
+    // Step 6: Check runtimes (advisory = included languages that don't cause hard fail)
+    check_runtimes(&manifest, &selected_languages)?;
 
     // Step 7: Create project
     create_project(
@@ -363,6 +363,7 @@ fn parse_language(s: &str) -> Option<check::Language> {
         "typescript" | "ts" => Some(check::Language::TypeScript),
         "javascript" | "js" => Some(check::Language::JavaScript),
         "python" | "py" => Some(check::Language::Python),
+        "rust" | "rs" => Some(check::Language::Rust),
         _ => None,
     }
 }
@@ -372,66 +373,79 @@ fn select_languages(
     args: &CreateArgs,
 ) -> Result<Vec<check::Language>> {
     let mut required_languages: Vec<check::Language> = Vec::new();
+    let mut included_languages: Vec<check::Language> = Vec::new();
     let mut optional_languages: Vec<check::Language> = Vec::new();
 
-    // Categorize TypeScript
-    if manifest.is_required("typescript") {
-        required_languages.push(check::Language::TypeScript);
-    } else if manifest.is_optional("typescript") {
-        optional_languages.push(check::Language::TypeScript);
+    let treat_as_included = manifest.treat_required_as_included;
+
+    for (lang_str, lang) in [
+        ("typescript", check::Language::TypeScript),
+        ("javascript", check::Language::JavaScript),
+        ("python", check::Language::Python),
+        ("rust", check::Language::Rust),
+    ] {
+        if manifest.is_required(lang_str) {
+            if treat_as_included {
+                included_languages.push(lang);
+            } else {
+                required_languages.push(lang);
+            }
+        } else if manifest.is_optional(lang_str) {
+            optional_languages.push(lang);
+        }
     }
 
-    // Categorize JavaScript
-    if manifest.is_required("javascript") {
-        required_languages.push(check::Language::JavaScript);
-    } else if manifest.is_optional("javascript") {
-        optional_languages.push(check::Language::JavaScript);
-    }
-
-    // Categorize Python
-    if manifest.is_required("python") {
-        required_languages.push(check::Language::Python);
-    } else if manifest.is_optional("python") {
-        optional_languages.push(check::Language::Python);
-    }
-
-    // Show required languages
     if !required_languages.is_empty() {
-        let required_names: Vec<&str> = required_languages
-            .iter()
-            .map(|l| l.display_name())
-            .collect();
-        cliclack::log::info(format!("Required: {}", required_names.join(", ")))?;
+        let names: Vec<&str> = required_languages.iter().map(|l| l.display_name()).collect();
+        cliclack::log::info(format!("Required: {}", names.join(", ")))?;
     }
 
     let mut selected_languages = required_languages.clone();
+    selected_languages.extend(included_languages.iter().copied());
 
-    // If --languages flag is provided, use those instead of prompting
+    let selectable: Vec<check::Language> = optional_languages.clone();
+
     if let Some(lang_args) = &args.languages {
         for lang_str in lang_args {
             if let Some(lang) = parse_language(lang_str) {
-                // Only add if it's optional and not already selected
-                if optional_languages.contains(&lang) && !selected_languages.contains(&lang) {
+                if selectable.contains(&lang) && !selected_languages.contains(&lang) {
                     selected_languages.push(lang);
                 }
             } else {
                 cliclack::log::warning(format!("Unknown language: {}", lang_str))?;
             }
         }
-    } else if !optional_languages.is_empty() {
-        // If there are optional languages and --yes flag, select all optional
+    } else if !selectable.is_empty() {
         if args.yes {
-            selected_languages.extend(optional_languages);
+            let to_add: Vec<_> = selectable
+                .iter()
+                .filter(|l| !selected_languages.contains(l))
+                .copied()
+                .collect();
+            selected_languages.extend(to_add);
         } else {
-            // Interactive selection
-            let mut multi = cliclack::multiselect("Select additional languages (optional)");
+            let prompt = if included_languages.is_empty() && optional_languages.is_empty() {
+                "Select languages"
+            } else {
+                "Select additional languages (optional)"
+            };
+            let mut multi = cliclack::multiselect(prompt);
 
-            for lang in &optional_languages {
+            for lang in &selectable {
                 multi = multi.item(lang.clone(), lang.display_name(), "");
             }
 
-            let selected: Vec<check::Language> = multi.required(false).interact()?;
-            selected_languages.extend(selected);
+            let selected: Vec<check::Language> = multi
+                .required(false)
+                .interact()?;
+
+            selected_languages = required_languages.clone();
+            selected_languages.extend(included_languages.iter().copied());
+            for lang in selected {
+                if !selected_languages.contains(&lang) {
+                    selected_languages.push(lang);
+                }
+            }
         }
     }
 
@@ -439,26 +453,49 @@ fn select_languages(
         anyhow::bail!("No languages available for this template.");
     }
 
+    let included_set: std::collections::HashSet<_> = included_languages.iter().collect();
+    let selected_set: std::collections::HashSet<_> = selected_languages.iter().collect();
+    if !included_languages.is_empty() && included_set != selected_set {
+        let names: Vec<&str> = included_languages.iter().map(|l| l.display_name()).collect();
+        cliclack::log::info(format!("Included: {}", names.join(", ")))?;
+    }
+
     let lang_names: Vec<&str> = selected_languages
         .iter()
         .map(|l| l.display_name())
         .collect();
-    cliclack::log::success(format!("Languages: {}", lang_names.join(", ")))?;
+    cliclack::log::success(format!("Project languages: {}", lang_names.join(", ")))?;
 
     Ok(selected_languages)
 }
 
-fn check_runtimes(languages: &[check::Language]) -> Result<()> {
+fn check_runtimes(
+    manifest: &TemplateManifest,
+    selected_languages: &[check::Language],
+) -> Result<()> {
+    let advisory: Vec<check::Language> = manifest
+        .included_language_names()
+        .iter()
+        .filter_map(|s| parse_language(s))
+        .filter(|l| selected_languages.contains(l))
+        .collect();
+
     let spinner = cliclack::spinner();
     spinner.start("Checking runtimes...");
 
-    match check::check_runtimes(languages) {
+    match check::check_runtimes_with_advisory(selected_languages, &advisory) {
         Ok(runtimes) => {
             let runtime_info: Vec<String> = runtimes
                 .iter()
-                .map(|r| format!("{} ({})", r.name, r.version.as_deref().unwrap_or("unknown")))
+                .map(|r| {
+                    if r.available {
+                        format!("{} ({})", r.name, r.version.as_deref().unwrap_or("unknown"))
+                    } else {
+                        format!("{} (not installed)", r.name)
+                    }
+                })
                 .collect();
-            spinner.stop(format!("Runtimes: {}", runtime_info.join(", ")));
+            spinner.stop(format!("Detected runtimes: {}", runtime_info.join(", ")));
             Ok(())
         }
         Err(e) => {

@@ -10,6 +10,7 @@ pub enum Language {
     TypeScript,
     JavaScript,
     Python,
+    Rust,
 }
 
 impl Language {
@@ -18,6 +19,7 @@ impl Language {
             Language::TypeScript => "TypeScript",
             Language::JavaScript => "JavaScript",
             Language::Python => "Python",
+            Language::Rust => "Rust",
         }
     }
 }
@@ -102,10 +104,41 @@ pub fn check_python() -> RuntimeInfo {
     }
 }
 
-/// Check all required runtimes based on selected languages
+/// Check if Cargo/Rust is available
+pub fn check_cargo() -> RuntimeInfo {
+    let output = Command::new("cargo").arg("--version").output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            RuntimeInfo {
+                name: "Cargo",
+                version: Some(version),
+                available: true,
+            }
+        }
+        _ => RuntimeInfo {
+            name: "Cargo",
+            version: None,
+            available: false,
+        },
+    }
+}
+
+/// Check runtimes with no advisory languages (strict mode - fail on any missing).
 pub fn check_runtimes(languages: &[Language]) -> Result<Vec<RuntimeInfo>> {
+    check_runtimes_with_advisory(languages, &[])
+}
+
+/// Check runtimes; languages in `advisory` get availability reported but don't cause failure.
+pub fn check_runtimes_with_advisory(
+    languages: &[Language],
+    advisory: &[Language],
+) -> Result<Vec<RuntimeInfo>> {
     let mut results = Vec::new();
     let mut missing = Vec::new();
+
+    let is_advisory = |lang: &Language| advisory.contains(lang);
 
     // TypeScript and JavaScript both need Node.js or Bun
     let needs_js_runtime = languages
@@ -115,24 +148,60 @@ pub fn check_runtimes(languages: &[Language]) -> Result<Vec<RuntimeInfo>> {
     if needs_js_runtime {
         let bun = check_bun();
         let node = check_node();
+        let js_ts_langs: Vec<_> = languages
+            .iter()
+            .filter(|l| matches!(l, Language::TypeScript | Language::JavaScript))
+            .collect();
+        let js_advisory =
+            !js_ts_langs.is_empty() && js_ts_langs.iter().all(|l| is_advisory(l));
 
-        // Prefer Bun, fall back to Node.js
+        let any_js_available = bun.available || node.available;
         if bun.available {
             results.push(bun);
-        } else if node.available {
+        }
+        if node.available {
             results.push(node);
-        } else {
-            missing.push("Node.js or Bun (install from https://nodejs.org or https://bun.sh)");
+        }
+        if !any_js_available {
+            if js_advisory {
+                results.push(RuntimeInfo {
+                    name: "Node.js or Bun",
+                    version: None,
+                    available: false,
+                });
+            } else {
+                missing.push("Node.js or Bun (install from https://nodejs.org or https://bun.sh)");
+            }
         }
     }
 
-    // Python needs python3
     if languages.contains(&Language::Python) {
         let python = check_python();
         if python.available {
             results.push(python);
+        } else if is_advisory(&Language::Python) {
+            results.push(RuntimeInfo {
+                name: "Python 3",
+                version: None,
+                available: false,
+            });
         } else {
             missing.push("Python 3 (install from https://python.org)");
+        }
+    }
+
+    if languages.contains(&Language::Rust) {
+        let cargo = check_cargo();
+        if cargo.available {
+            results.push(cargo);
+        } else if is_advisory(&Language::Rust) {
+            results.push(RuntimeInfo {
+                name: "Cargo",
+                version: None,
+                available: false,
+            });
+        } else {
+            missing.push("Cargo/Rust (install from https://rustup.rs)");
         }
     }
 

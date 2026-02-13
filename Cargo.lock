@@ -848,7 +848,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "iii-cli"
+name = "iii-tools"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1052,7 +1052,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "motia-cli"
+name = "motia-tools"
 version = "0.1.0"
 dependencies = [
  "anyhow",
