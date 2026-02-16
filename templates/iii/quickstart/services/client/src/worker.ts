@@ -28,13 +28,13 @@ const health = registerFunction({ id: "client::health" }, async () => {
 // registerTrigger can also be used independently to create other kinds
 // of callables such as an http endpoint, or a cron job.
 registerTrigger({
-  type: "http",
+  trigger_type: "http",
   function_id: health.id, // This is just the string from registerFunction, ie. "client::health"
   config: { api_path: "health", http_method: "GET" },
 });
 
 registerTrigger({
-  type: "cron",
+  trigger_type: "cron",
   function_id: health.id,
   config: { expression: "*/30 * * * * * *" }, // Cron jobs in iii support seconds, this executes every 30 seconds
 });
@@ -104,7 +104,7 @@ const orchestrate = registerFunction(
 
 // And now this is creating a callable http endpoint.
 registerTrigger({
-  type: "http",
+  trigger_type: "http",
   function_id: orchestrate.id,
   config: { api_path: "orchestrate", http_method: "POST" },
 });
