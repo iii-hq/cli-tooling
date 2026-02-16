@@ -30,7 +30,7 @@ const health = registerFunction({ id: "client::health" }, async () => {
 registerTrigger({
   type: "http",
   function_id: health.id, // This is just the string from registerFunction, ie. "client::health"
-  config: { api_path: "health", http_method: "GET" },
+  config: { api_path: "/health", http_method: "GET" },
 });
 
 registerTrigger({
@@ -106,7 +106,7 @@ const orchestrate = registerFunction(
 registerTrigger({
   type: "http",
   function_id: orchestrate.id,
-  config: { api_path: "orchestrate", http_method: "POST" },
+  config: { api_path: "/orchestrate", http_method: "POST" },
 });
 
 console.log("Client started - listening for calls");
