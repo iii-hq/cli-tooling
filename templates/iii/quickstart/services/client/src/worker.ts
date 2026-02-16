@@ -13,7 +13,7 @@ const WORKER_VERSION = 1;
 await call("state::set", {
   scope: "shared",
   key: "WORKER_VERSION",
-  value: WORKER_VERSION,
+  data: WORKER_VERSION,
 });
 
 // registerFunction is used to declare functionality to the iii engine.
