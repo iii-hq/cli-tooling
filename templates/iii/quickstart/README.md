@@ -1,7 +1,7 @@
 # Welcome to iii
 
 This is the iii quickstart project, it's intended to demonstrate how iii works,
-teach the basics of using iii, and show the power of having a central coordinator.
+teach the basics of using iii, and show the power of having seamless orchestration.
 
 One of the first things you might notice is that the `services/` folder contains
 `client` and `payment-service` TypeScript projects, a Rust `compute-service`, and
