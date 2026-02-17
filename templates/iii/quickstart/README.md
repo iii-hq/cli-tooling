@@ -125,7 +125,8 @@ with complete observability, and automatic asynchronous retries.
 
 ## Review the code
 
-Look at `worker.ts` for a full explanation of how this worked.
+Look at `service/client/src/worker.ts` and visit https://iii.dev/docs/concepts
+to learn how iii connected all of these services.
 
 ## Architecture
 
