@@ -1,0 +1,354 @@
+name: Publish to Homebrew
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.2.3)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Run in dry-run mode (skip actual publish)'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  TAP_REPO: iii-hq/homebrew-tap
+  BINARY_REPO: iii-hq/cli-tooling
+  BINARIES: "motia iii-tools"
+
+jobs:
+  publish-homebrew:
+    name: Update Homebrew Formulas
+    runs-on: macos-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Validate version format
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format. Expected: v1.2.3"
+            exit 1
+          fi
+
+          echo "Version validated: $VERSION"
+
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
+        with:
+          app-id: ${{ secrets.III_CI_APP_ID }}
+          private-key: ${{ secrets.III_CI_APP_PRIVATE_KEY }}
+          repositories: homebrew-tap
+
+      - name: Checkout tap repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: ${{ env.TAP_REPO }}
+          token: ${{ steps.generate_token.outputs.token }}
+          path: homebrew-tap
+
+      - name: Download motia release assets
+        env:
+          VERSION: ${{ inputs.version }}
+          BINARY_REPO_NAME: ${{ env.BINARY_REPO }}
+        run: |
+          curl -L --fail -o motia-x86_64-apple-darwin.tar.gz \
+            "https://github.com/${BINARY_REPO_NAME}/releases/download/${VERSION}/motia-x86_64-apple-darwin.tar.gz"
+
+          curl -L --fail -o motia-aarch64-apple-darwin.tar.gz \
+            "https://github.com/${BINARY_REPO_NAME}/releases/download/${VERSION}/motia-aarch64-apple-darwin.tar.gz"
+
+          curl -L --fail -o motia-x86_64-unknown-linux-gnu.tar.gz \
+            "https://github.com/${BINARY_REPO_NAME}/releases/download/${VERSION}/motia-x86_64-unknown-linux-gnu.tar.gz"
+
+          curl -L --fail -o motia-aarch64-unknown-linux-gnu.tar.gz \
+            "https://github.com/${BINARY_REPO_NAME}/releases/download/${VERSION}/motia-aarch64-unknown-linux-gnu.tar.gz"
+
+          for file in motia-x86_64-apple-darwin.tar.gz motia-aarch64-apple-darwin.tar.gz motia-x86_64-unknown-linux-gnu.tar.gz motia-aarch64-unknown-linux-gnu.tar.gz; do
+            if [ ! -s "$file" ]; then
+              echo "::error::$file is missing or empty"
+              exit 1
+            fi
+          done
+          ls -lh motia-*.tar.gz
+
+      - name: Download iii-tools release assets
+        env:
+          VERSION: ${{ inputs.version }}
+          BINARY_REPO_NAME: ${{ env.BINARY_REPO }}
+        run: |
+          curl -L --fail -o iii-tools-x86_64-apple-darwin.tar.gz \
+            "https://github.com/${BINARY_REPO_NAME}/releases/download/${VERSION}/iii-tools-x86_64-apple-darwin.tar.gz"
+
+          curl -L --fail -o iii-tools-aarch64-apple-darwin.tar.gz \
+            "https://github.com/${BINARY_REPO_NAME}/releases/download/${VERSION}/iii-tools-aarch64-apple-darwin.tar.gz"
+
+          curl -L --fail -o iii-tools-x86_64-unknown-linux-gnu.tar.gz \
+            "https://github.com/${BINARY_REPO_NAME}/releases/download/${VERSION}/iii-tools-x86_64-unknown-linux-gnu.tar.gz"
+
+          curl -L --fail -o iii-tools-aarch64-unknown-linux-gnu.tar.gz \
+            "https://github.com/${BINARY_REPO_NAME}/releases/download/${VERSION}/iii-tools-aarch64-unknown-linux-gnu.tar.gz"
+
+          for file in iii-tools-x86_64-apple-darwin.tar.gz iii-tools-aarch64-apple-darwin.tar.gz iii-tools-x86_64-unknown-linux-gnu.tar.gz iii-tools-aarch64-unknown-linux-gnu.tar.gz; do
+            if [ ! -s "$file" ]; then
+              echo "::error::$file is missing or empty"
+              exit 1
+            fi
+          done
+          ls -lh iii-tools-*.tar.gz
+
+      - name: Calculate motia SHA256 checksums
+        id: motia_checksums
+        run: |
+          MACOS_X86_SHA=$(shasum -a 256 motia-x86_64-apple-darwin.tar.gz | awk '{print $1}')
+          MACOS_ARM_SHA=$(shasum -a 256 motia-aarch64-apple-darwin.tar.gz | awk '{print $1}')
+          LINUX_X86_SHA=$(shasum -a 256 motia-x86_64-unknown-linux-gnu.tar.gz | awk '{print $1}')
+          LINUX_ARM_SHA=$(shasum -a 256 motia-aarch64-unknown-linux-gnu.tar.gz | awk '{print $1}')
+
+          echo "macos_x86_64_sha256=${MACOS_X86_SHA}" >> "$GITHUB_OUTPUT"
+          echo "macos_aarch64_sha256=${MACOS_ARM_SHA}" >> "$GITHUB_OUTPUT"
+          echo "linux_x86_64_sha256=${LINUX_X86_SHA}" >> "$GITHUB_OUTPUT"
+          echo "linux_aarch64_sha256=${LINUX_ARM_SHA}" >> "$GITHUB_OUTPUT"
+
+          echo "motia checksums:"
+          echo "  macOS x86_64:  ${MACOS_X86_SHA}"
+          echo "  macOS aarch64: ${MACOS_ARM_SHA}"
+          echo "  Linux x86_64:  ${LINUX_X86_SHA}"
+          echo "  Linux aarch64: ${LINUX_ARM_SHA}"
+
+      - name: Calculate iii-tools SHA256 checksums
+        id: iii_tools_checksums
+        run: |
+          MACOS_X86_SHA=$(shasum -a 256 iii-tools-x86_64-apple-darwin.tar.gz | awk '{print $1}')
+          MACOS_ARM_SHA=$(shasum -a 256 iii-tools-aarch64-apple-darwin.tar.gz | awk '{print $1}')
+          LINUX_X86_SHA=$(shasum -a 256 iii-tools-x86_64-unknown-linux-gnu.tar.gz | awk '{print $1}')
+          LINUX_ARM_SHA=$(shasum -a 256 iii-tools-aarch64-unknown-linux-gnu.tar.gz | awk '{print $1}')
+
+          echo "macos_x86_64_sha256=${MACOS_X86_SHA}" >> "$GITHUB_OUTPUT"
+          echo "macos_aarch64_sha256=${MACOS_ARM_SHA}" >> "$GITHUB_OUTPUT"
+          echo "linux_x86_64_sha256=${LINUX_X86_SHA}" >> "$GITHUB_OUTPUT"
+          echo "linux_aarch64_sha256=${LINUX_ARM_SHA}" >> "$GITHUB_OUTPUT"
+
+          echo "iii-tools checksums:"
+          echo "  macOS x86_64:  ${MACOS_X86_SHA}"
+          echo "  macOS aarch64: ${MACOS_ARM_SHA}"
+          echo "  Linux x86_64:  ${LINUX_X86_SHA}"
+          echo "  Linux aarch64: ${LINUX_ARM_SHA}"
+
+      - name: Generate motia formula
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          MACOS_X86_SHA: ${{ steps.motia_checksums.outputs.macos_x86_64_sha256 }}
+          MACOS_ARM_SHA: ${{ steps.motia_checksums.outputs.macos_aarch64_sha256 }}
+          LINUX_X86_SHA: ${{ steps.motia_checksums.outputs.linux_x86_64_sha256 }}
+          LINUX_ARM_SHA: ${{ steps.motia_checksums.outputs.linux_aarch64_sha256 }}
+        run: |
+          VERSION_NUMBER="${RELEASE_VERSION#v}"
+
+          cd homebrew-tap
+          mkdir -p Formula
+
+          cat <<BREWEOF > Formula/motia.rb
+          class Motia < Formula
+            desc "CLI for managing Motia projects"
+            homepage "https://github.com/iii-hq/cli-tooling"
+            version "${VERSION_NUMBER}"
+            license "Apache-2.0"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/iii-hq/cli-tooling/releases/download/${RELEASE_VERSION}/motia-aarch64-apple-darwin.tar.gz"
+                sha256 "${MACOS_ARM_SHA}"
+              else
+                url "https://github.com/iii-hq/cli-tooling/releases/download/${RELEASE_VERSION}/motia-x86_64-apple-darwin.tar.gz"
+                sha256 "${MACOS_X86_SHA}"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "https://github.com/iii-hq/cli-tooling/releases/download/${RELEASE_VERSION}/motia-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_ARM_SHA}"
+              else
+                url "https://github.com/iii-hq/cli-tooling/releases/download/${RELEASE_VERSION}/motia-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_X86_SHA}"
+              end
+            end
+
+            def install
+              bin.install "motia"
+            end
+
+            test do
+              system "\#{bin}/motia", "--version"
+            end
+          end
+          BREWEOF
+
+          sed 's/^          //' Formula/motia.rb > Formula/motia.rb.tmp && mv Formula/motia.rb.tmp Formula/motia.rb
+
+          echo "motia formula generated:"
+          cat Formula/motia.rb
+
+      - name: Generate iii-tools formula
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          MACOS_X86_SHA: ${{ steps.iii_tools_checksums.outputs.macos_x86_64_sha256 }}
+          MACOS_ARM_SHA: ${{ steps.iii_tools_checksums.outputs.macos_aarch64_sha256 }}
+          LINUX_X86_SHA: ${{ steps.iii_tools_checksums.outputs.linux_x86_64_sha256 }}
+          LINUX_ARM_SHA: ${{ steps.iii_tools_checksums.outputs.linux_aarch64_sha256 }}
+        run: |
+          VERSION_NUMBER="${RELEASE_VERSION#v}"
+
+          cd homebrew-tap
+
+          cat <<BREWEOF > Formula/iii-tools.rb
+          class IiiTools < Formula
+            desc "CLI for managing iii projects"
+            homepage "https://github.com/iii-hq/cli-tooling"
+            version "${VERSION_NUMBER}"
+            license "Apache-2.0"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/iii-hq/cli-tooling/releases/download/${RELEASE_VERSION}/iii-tools-aarch64-apple-darwin.tar.gz"
+                sha256 "${MACOS_ARM_SHA}"
+              else
+                url "https://github.com/iii-hq/cli-tooling/releases/download/${RELEASE_VERSION}/iii-tools-x86_64-apple-darwin.tar.gz"
+                sha256 "${MACOS_X86_SHA}"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "https://github.com/iii-hq/cli-tooling/releases/download/${RELEASE_VERSION}/iii-tools-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_ARM_SHA}"
+              else
+                url "https://github.com/iii-hq/cli-tooling/releases/download/${RELEASE_VERSION}/iii-tools-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_X86_SHA}"
+              end
+            end
+
+            def install
+              bin.install "iii-tools"
+            end
+
+            test do
+              system "\#{bin}/iii-tools", "--version"
+            end
+          end
+          BREWEOF
+
+          sed 's/^          //' Formula/iii-tools.rb > Formula/iii-tools.rb.tmp && mv Formula/iii-tools.rb.tmp Formula/iii-tools.rb
+
+          echo "iii-tools formula generated:"
+          cat Formula/iii-tools.rb
+
+      - name: Test motia formula locally
+        run: |
+          brew tap iii-hq/tap "${{ github.workspace }}/homebrew-tap"
+          brew audit --new iii-hq/tap/motia || true
+          brew install iii-hq/tap/motia
+          motia --version
+          brew uninstall motia
+          brew untap iii-hq/tap
+
+      - name: Test iii-tools formula locally
+        run: |
+          brew tap iii-hq/tap "${{ github.workspace }}/homebrew-tap"
+          brew audit --new iii-hq/tap/iii-tools || true
+          brew install iii-hq/tap/iii-tools
+          iii-tools --version
+          brew uninstall iii-tools
+          brew untap iii-hq/tap
+
+      - name: Commit and push changes
+        if: inputs.dry_run != true
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          MOTIA_MACOS_X86_SHA: ${{ steps.motia_checksums.outputs.macos_x86_64_sha256 }}
+          MOTIA_MACOS_ARM_SHA: ${{ steps.motia_checksums.outputs.macos_aarch64_sha256 }}
+          MOTIA_LINUX_X86_SHA: ${{ steps.motia_checksums.outputs.linux_x86_64_sha256 }}
+          MOTIA_LINUX_ARM_SHA: ${{ steps.motia_checksums.outputs.linux_aarch64_sha256 }}
+          III_TOOLS_MACOS_X86_SHA: ${{ steps.iii_tools_checksums.outputs.macos_x86_64_sha256 }}
+          III_TOOLS_MACOS_ARM_SHA: ${{ steps.iii_tools_checksums.outputs.macos_aarch64_sha256 }}
+          III_TOOLS_LINUX_X86_SHA: ${{ steps.iii_tools_checksums.outputs.linux_x86_64_sha256 }}
+          III_TOOLS_LINUX_ARM_SHA: ${{ steps.iii_tools_checksums.outputs.linux_aarch64_sha256 }}
+        run: |
+          cd homebrew-tap
+
+          git config user.name "iii-ci[bot]"
+          git config user.email "iii-ci[bot]@users.noreply.github.com"
+
+          git add Formula/motia.rb Formula/iii-tools.rb
+          git commit -m "chore: update cli-tooling formulas to ${RELEASE_VERSION}
+
+          Automated update from release workflow.
+
+          motia checksums:
+          - macOS x86_64 SHA256: ${MOTIA_MACOS_X86_SHA}
+          - macOS aarch64 SHA256: ${MOTIA_MACOS_ARM_SHA}
+          - Linux x86_64 SHA256: ${MOTIA_LINUX_X86_SHA}
+          - Linux aarch64 SHA256: ${MOTIA_LINUX_ARM_SHA}
+
+          iii-tools checksums:
+          - macOS x86_64 SHA256: ${III_TOOLS_MACOS_X86_SHA}
+          - macOS aarch64 SHA256: ${III_TOOLS_MACOS_ARM_SHA}
+          - Linux x86_64 SHA256: ${III_TOOLS_LINUX_X86_SHA}
+          - Linux aarch64 SHA256: ${III_TOOLS_LINUX_ARM_SHA}
+          "
+
+          git push origin main
+
+          echo "Both formulas published to homebrew-tap!"
+
+      - name: Dry-run summary
+        if: inputs.dry_run == true
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          echo "DRY RUN MODE - No changes pushed"
+          echo ""
+          echo "Formulas validated successfully:"
+          echo "- Version: ${RELEASE_VERSION}"
+          echo "- motia formula: Formula/motia.rb"
+          echo "- iii-tools formula: Formula/iii-tools.rb"
+          echo ""
+          echo "Set dry_run=false to publish for real."
+
+      - name: Notify Slack on success
+        if: success() && inputs.dry_run != true
+        continue-on-error: true
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: "Homebrew formulas updated"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "*Homebrew Formulas Updated* :beer:\n\nVersion: `${{ inputs.version }}`\n\nUsers can now install with:\n```brew tap iii-hq/tap\nbrew install motia\nbrew install iii-tools```"
+
+      - name: Notify Slack on failure
+        if: failure()
+        continue-on-error: true
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: "Homebrew publish failed"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "*Homebrew Publish Failed* :x:\n\nVersion: `${{ inputs.version }}`\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>"

@@ -14,13 +14,13 @@ authors = ["Motia Dev Team"]
 [workspace.dependencies]
 # Interactive prompts (Charm-style) - optional for TUI feature
 cliclack = "0.3"
-console = "0.15"
+console = "0.16"
 
 # Signal handling for clean exit
 ctrlc = "3"
 
 # Terminal styling
-colored = "2"
+colored = "3"
 
 # Async runtime
 tokio = { version = "1", features = ["full", "process"] }
@@ -30,7 +30,7 @@ serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
 
 # HTTP client for remote templates
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 
 # URL parsing and manipulation
 url = "2"
@@ -49,7 +49,7 @@ semver = "1"
 walkdir = "2"
 
 # Zip archive extraction
-zip = "2"
+zip = "8.1"
 
 # Open URLs in browser
 open = "5"
