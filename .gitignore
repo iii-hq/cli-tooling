@@ -389,3 +389,6 @@ target
 .mypy*
 test*
 .DS_Store
+
+.omc/
+AGENTS.md
