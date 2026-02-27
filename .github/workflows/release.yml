@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  TOTAL_TARGETS: 8
+  TOTAL_TARGETS: 7
   BINARIES: "motia iii-tools"
 
 jobs:
@@ -139,8 +139,6 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
           - target: x86_64-pc-windows-msvc
-            os: windows-latest
-          - target: i686-pc-windows-msvc
             os: windows-latest
           - target: aarch64-pc-windows-msvc
             os: windows-latest
