@@ -125,7 +125,7 @@ with complete observability, and automatic asynchronous retries.
 
 ## Review the code
 
-Look at `service/client/src/worker.ts` and visit https://iii.dev/docs/concepts
+Look at `services/client/src/worker.ts` and visit https://iii.dev/docs/concepts
 to learn how iii connected all of these services.
 
 ## Architecture
@@ -143,5 +143,5 @@ to learn how iii connected all of these services.
 ```
 
 Services communicate via the iii engine regardless of language and with iii
-performing the central orchestration it is possible to call functions across
+performing the central orchestration it is possible to trigger functions across
 processes, languages, services, domains, and application boundaries.

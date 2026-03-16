@@ -2,49 +2,47 @@
 // In this usecase it can be thought of as an orchestrator
 // but there is no requirement from iii for a central orchestrator.
 
-import { init, getContext } from "iii-sdk";
-const { registerFunction, registerTrigger, call } = init(
+import { registerWorker, Logger } from "iii-sdk";
+const iii = registerWorker(
   process.env.III_BRIDGE_URL ?? "ws://localhost:49134",
 );
+const logger = new Logger();
 
 // In iii all services behave as a single application so it is
 // possible to set scoped state in one service and retrieve it in another.
 const WORKER_VERSION = 1;
-await call("state::set", {
-  scope: "shared",
-  key: "WORKER_VERSION",
-  data: WORKER_VERSION,
+await iii.trigger({
+  function_id: "state::set",
+  payload: { scope: "shared", key: "WORKER_VERSION", data: WORKER_VERSION },
 });
 
 // registerFunction is used to declare functionality to the iii engine.
-// Once registered any other process connect to the engine can call this function.
-// registerFunction use registerTrigger internally to make a function callable.
-const health = registerFunction({ id: "client::health" }, async () => {
-  const { logger } = getContext(); // Context provides logging and tracing facilities
+// Once registered any other process connected to the engine can trigger this function.
+// registerFunction uses registerTrigger internally to make a function callable.
+const health = iii.registerFunction({ id: "client::health" }, async () => {
   logger.info("Health check OK");
   return { status: 200, body: { healthy: true, timestamp: Date.now() } };
 });
 
 // registerTrigger can also be used independently to create other kinds
 // of callables such as an http endpoint, or a cron job.
-registerTrigger({
+iii.registerTrigger({
   type: "http",
   function_id: health.id, // This is just the string from registerFunction, ie. "client::health"
   config: { api_path: "/health", http_method: "GET" },
 });
 
-registerTrigger({
+iii.registerTrigger({
   type: "cron",
   function_id: health.id,
   config: { expression: "*/30 * * * * * *" }, // Cron jobs in iii support seconds, this executes every 30 seconds
 });
 
-// The advantage of this structure is that this code can directly call
+// The advantage of this structure is that this code can directly trigger
 // functions that live in other services and even that use other languages.
-const orchestrate = registerFunction(
+const orchestrate = iii.registerFunction(
   { id: "client::orchestrate" },
   async (payload) => {
-    const { logger } = getContext();
     logger.info("Handling request", { payload: JSON.stringify(payload) });
 
     const results: { client: string; errors: any[]; [key: string]: unknown } = {
@@ -52,17 +50,19 @@ const orchestrate = registerFunction(
       errors: [],
     };
 
-    // Handle both direct function calling and HTTP API calls
+    // Handle both direct function triggering and HTTP API calls
     const body = payload.body ?? payload;
     const data = body.data ?? body;
 
-    // This is an async call to a Python service.
-    const dataRequest = call("data-service::transform", {
-      data: data,
+    // This is an async trigger to a Python service.
+    const dataRequest = iii.trigger({
+      function_id: "data-service::transform",
+      payload: { data },
     });
-    // This is an async call to a Rust service.
-    const computeRequest = call("compute-service::compute", {
-      n: body.n,
+    // This is an async trigger to a Rust service.
+    const computeRequest = iii.trigger({
+      function_id: "compute-service::compute",
+      payload: { n: body.n },
     });
 
     // Results behave like native functions, here Promises are returned.
@@ -85,10 +85,11 @@ const orchestrate = registerFunction(
       results.errors.push(computeResult.reason);
     }
 
-    // This is a call to an external service.
+    // This is a trigger to an external service.
     try {
-      results.externalService = await call("payment-service::record", {
-        charge: 0.0001,
+      results.externalService = await iii.trigger({
+        function_id: "payment-service::record",
+        payload: { charge: 0.0001 },
       });
     } catch (error) {
       logger.error("payment-service error", error);
@@ -103,7 +104,7 @@ const orchestrate = registerFunction(
 );
 
 // And now this is creating a callable http endpoint.
-registerTrigger({
+iii.registerTrigger({
   type: "http",
   function_id: orchestrate.id,
   config: { api_path: "/orchestrate", http_method: "POST" },
