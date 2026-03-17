@@ -29,8 +29,10 @@ modules:
       cors:
         allowed_origins:
           # To allow all origins, use '*':
-          # - '*'
+          # - '*' # use * with caution, allows any origin to make requests
           - localhost
+          - http://localhost:3113
+          - http://127.0.0.1:3113
         allowed_methods:
           - GET
           - POST
