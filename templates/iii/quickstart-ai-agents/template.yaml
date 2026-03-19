@@ -1,0 +1,29 @@
+name: AI Agents Quickstart
+description: Build an AI agent system with event-driven architecture, step by step
+version: "0.1.0"
+
+treat_required_as_included: true
+requires:
+  - python
+  - typescript
+optional: []
+
+# Java is not a scaffolder-recognized language, so include .java files as common
+language_files:
+  common:
+    - "*.java"
+
+files:
+  - README.md
+  - docker-compose.yaml
+  - services/account-events/package.json
+  - services/account-events/tsconfig.json
+  - services/account-events/Dockerfile
+  - services/account-events/.dockerignore
+  - services/account-events/src/worker.ts
+  - services/ai-agent/requirements.txt
+  - services/ai-agent/Dockerfile
+  - services/ai-agent/.dockerignore
+  - services/ai-agent/agent.py
+  - services/legacy-service/Dockerfile
+  - services/legacy-service/LegacyServer.java

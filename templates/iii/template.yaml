@@ -1,6 +1,7 @@
 # Root template manifest for iii - lists available templates by folder name
 templates:
   - quickstart
+  - quickstart-ai-agents
   # - starter
 
 # Shared files from this directory included in every template
