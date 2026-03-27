@@ -54,6 +54,13 @@ zip = "8.1"
 # Open URLs in browser
 open = "5"
 
+# Telemetry / project identity (shared with iii engine)
+dirs = "6"
+toml = "0.8"
+uuid = { version = "1", features = ["v4"] }
+serde_json = "1"
+sha2 = "0.10"
+
 # Local crates
 scaffolder-core = { path = "crates/scaffolder-core" }
 

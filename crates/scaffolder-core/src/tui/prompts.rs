@@ -2,6 +2,7 @@
 
 use crate::product::ProductConfig;
 use crate::runtime::check;
+use crate::telemetry;
 use crate::templates::manifest::{LanguageFiles, TemplateManifest};
 use crate::templates::{copier, fetcher::TemplateFetcher, version};
 use anyhow::Result;
@@ -81,6 +82,8 @@ pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &s
 
     // Step 7: Create project
     create_project(
+        config.name(),
+        cli_version,
         &mut fetcher,
         &template_name,
         &manifest,
@@ -507,6 +510,8 @@ fn check_runtimes(
 }
 
 async fn create_project(
+    product_name: &'static str,
+    cli_version: &str,
     fetcher: &mut TemplateFetcher,
     template_name: &str,
     manifest: &TemplateManifest,
@@ -517,7 +522,6 @@ async fn create_project(
     let spinner = cliclack::spinner();
     spinner.start("Creating project...");
 
-    // Copy template files
     let copied_files = copier::copy_template(
         fetcher,
         template_name,
@@ -528,11 +532,56 @@ async fn create_project(
     )
     .await?;
 
+    let project_id = uuid::Uuid::new_v4().to_string();
+    let project_name = project_dir
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    telemetry::write_project_ini(project_dir, &project_id, &project_name).await?;
+
+    let platform = telemetry::platform_for_product(product_name);
+    let tools_version = cli_version.to_string();
+    telemetry::spawn_project_event(
+        "project_created",
+        platform,
+        tools_version.clone(),
+        serde_json::json!({
+            "project_id": project_id.clone(),
+            "project_name": project_name.clone(),
+            "template": template_name,
+            "product": product_name,
+        }),
+    );
+
     spinner.stop(format!(
         "Created {} files in {}",
         copied_files.len() + 1,
         project_dir.display()
     ));
+
+    let install_spinner = cliclack::spinner();
+    install_spinner.start("Installing dependencies (when applicable)...");
+    match telemetry::run_dependency_install(project_dir, selected_languages).await {
+        Ok(()) => install_spinner.stop("Dependency step finished"),
+        Err(e) => {
+            install_spinner.stop("Dependency installation failed");
+            return Err(e);
+        }
+    }
+
+    telemetry::spawn_project_event(
+        "project_initialized",
+        platform,
+        tools_version,
+        serde_json::json!({
+            "project_id": project_id,
+            "project_name": project_name,
+            "template": template_name,
+            "product": product_name,
+        }),
+    );
 
     Ok(())
 }
