@@ -57,7 +57,7 @@ def strategic_observer(event: dict) -> dict:
     company_id = event.get("companyId") or event.get("data", {}).get("companyId")
     logger.info("AI agent received upgrade event", {"companyId": company_id})
 
-    # Cross-worker call: fetch company details from account-events service
+    # Cross-worker call: fetch company details from account-events worker
     company = iii.trigger(
         {"function_id": "accounts::get-details", "payload": {"companyId": company_id}}
     )
@@ -124,7 +124,7 @@ iii.register_trigger(
 
 print("✓ Step 3 complete: AI agent is observing account upgrades.")
 print(
-    "  → Next: Start the legacy-service (Java), then uncomment Step 4 in services/account-events/src/worker.ts"
+    "  → Next: Start the legacy-worker (Java), then uncomment Step 4 in workers/account-events/src/worker.ts"
 )
 print("")
 

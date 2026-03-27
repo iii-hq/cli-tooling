@@ -3,17 +3,17 @@
 This is the iii quickstart project, it's intended to demonstrate how iii works,
 teach the basics of using iii, and show the power of having seamless orchestration.
 
-One of the first things you might notice is that the `services/` folder contains
-`client` and `payment-service` TypeScript projects, a Rust `compute-service`, and
-a Python `data-service`. For demonstration these services are all in the
-same project. The languages for each service, and project structure are chosen
+One of the first things you might notice is that the `workers/` folder contains
+`client` and `payment-worker` TypeScript projects, a Rust `compute-worker`, and
+a Python `data-worker`. For demonstration these workers are all in the
+same project. The languages for each worker, and project structure are chosen
 only for the convenience of demonstration.
 
-These services can easily be located in their own projects,
+These workers can easily be located in their own projects,
 written in other languages, or already running on servers where
 only API access is available.
 
-Check the `services/client/src/worker.ts` file to see how this works.
+Check the `workers/client/src/worker.ts` file to see how this works.
 The iii Node SDK is functionally identical to the iii's SDKs for other languages.
 
 ## Prerequisites
@@ -21,13 +21,13 @@ The iii Node SDK is functionally identical to the iii's SDKs for other languages
 ### Required
 
 - **iii engine** installed (see https://iii.dev/docs for details)
-- **Node.js** (for client, and payment-service)
+- **Node.js** (for client, and payment-worker)
 
 ### Optional
 
-- **Docker** (to run services via `docker compose` see step 2)
-- **Python 3** (for data-service when running natively)
-- **Rust/Cargo** (for compute-service when running natively)
+- **Docker** (to run workers via `docker compose` see step 2)
+- **Python 3** (for data-worker when running natively)
+- **Rust/Cargo** (for compute-worker when running natively)
 
 ## Quick Start
 
@@ -37,7 +37,7 @@ The iii Node SDK is functionally identical to the iii's SDKs for other languages
 iii -c iii-config.yaml
 ```
 
-### 2. Start the services
+### 2. Start the workers
 
 #### Option A: Docker Compose
 
@@ -45,34 +45,34 @@ iii -c iii-config.yaml
 docker compose up --build
 ```
 
-This will start the complete service architecture.
+This will start the complete worker architecture.
 
 #### Option B: Run each in a separate terminal
 
-While it's not necessary to start all services at least Client and Payment Service
+While it's not necessary to start all workers at least Client and Payment Worker
 need to be running.
 
 ```bash
 # Client (TypeScript orchestrator)
-cd services/client
+cd workers/client
 npm install
 npm run dev
 
-# Payment Service (TypeScript)
-cd services/payment-service
+# Payment Worker (TypeScript)
+cd workers/payment-worker
 npm install
 npm run dev
 
-# Compute Service (Rust)
-cd services/compute-service
+# Compute Worker (Rust)
+cd workers/compute-worker
 cargo run
 
-# Data Service (Python)
-cd services/data-service
+# Data Worker (Python)
+cd workers/data-worker
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python data_service.py
+python data_worker.py
 ```
 
 ### 3. Try it out
@@ -83,16 +83,16 @@ curl -X POST http://localhost:3111/orchestrate \
   -d '{"data":{"message":"hello from client"},"n":42}' | jq
 ```
 
-If all services are running the output will look like the below.
-If some services aren't the application will still run the available
-services and there will be error reports both in the JSON returned
+If all workers are running the output will look like the below.
+If some workers aren't the application will still run the available
+workers and there will be error reports both in the JSON returned
 and on the iii console output.
 
 ```json
 {
   "client": "ok",
-  "computeService": { "input": 42, "result": 84, "source": "compute-service" },
-  "dataService": {
+  "computeWorker": { "input": 42, "result": 84, "source": "compute-worker" },
+  "dataWorker": {
     "keys": [
       "body",
       "headers",
@@ -102,7 +102,7 @@ and on the iii console output.
       "query_params",
       "trigger"
     ],
-    "source": "data-service",
+    "source": "data-worker",
     "transformed": {
       "body": { "data": { "message": "hello from client" }, "n": 42 },
       "headers": "...",
@@ -112,21 +112,21 @@ and on the iii console output.
     }
   },
   "errors": [],
-  "externalService": {
+  "externalWorker": {
     "body": { "message": "Payment recorded" },
-    "source": "payment-service",
+    "source": "payment-worker",
     "status": 200
   }
 }
 ```
 
-Congratulations! This project executed functions across 3 languages, 4 service boundaries,
+Congratulations! This project executed functions across 3 languages, 4 worker boundaries,
 with complete observability, and automatic asynchronous retries.
 
 ## Review the code
 
-Look at `services/client/src/worker.ts` and visit https://iii.dev/docs/concepts
-to learn how iii connected all of these services.
+Look at `workers/client/src/worker.ts` and visit https://iii.dev/docs/concepts
+to learn how iii connected all of these workers.
 
 ## Architecture
 
@@ -142,6 +142,6 @@ to learn how iii connected all of these services.
     └──────────┘ └─────────┘ └───────┘ └──────────┘
 ```
 
-Services communicate via the iii engine regardless of language and with iii
+Workers communicate via the iii engine regardless of language and with iii
 performing the central orchestration it is possible to trigger functions across
-processes, languages, services, domains, and application boundaries.
+processes, languages, workers, domains, and application boundaries.

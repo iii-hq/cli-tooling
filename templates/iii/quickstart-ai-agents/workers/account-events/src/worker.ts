@@ -1,5 +1,5 @@
 // Account Events Worker
-// This service manages account upgrades and publishes events to the iii event bus.
+// This worker manages account upgrades and publishes events to the iii event bus.
 // Follow the steps below to progressively build out the full system.
 
 import { registerWorker, Logger, TriggerAction } from "iii-sdk";
@@ -9,8 +9,8 @@ const iii = registerWorker(
 );
 const logger = new Logger();
 
-const LEGACY_SERVICE_URL =
-  process.env.LEGACY_SERVICE_URL ?? "http://localhost:8080";
+const LEGACY_WORKER_URL =
+  process.env.LEGACY_WORKER_URL ?? "http://localhost:8080";
 
 // Mock account database
 const accounts: Record<
@@ -27,7 +27,7 @@ const accounts: Record<
 // STEP 1: Account upgrade events (active by default)
 // ═══════════════════════════════════════════════════════════════════
 
-// This function is called cross-worker by the ai-agent service.
+// This function is called cross-worker by the ai-agent worker.
 iii.registerFunction(
   { id: "accounts::get-details" },
   async (payload) => {
@@ -108,14 +108,14 @@ console.log("");
 //   "✓ Step 2 complete: Sales team will be notified on account upgrades.",
 // );
 // console.log(
-//   "  → Next: Start the ai-agent service (see README for instructions).",
+//   "  → Next: Start the ai-agent worker (see README for instructions).",
 // );
 // console.log("");
 // --- UNCOMMENT STEP 2 END ---
 
 // ═══════════════════════════════════════════════════════════════════
 // STEP 4: Legacy system integration
-// Uncomment AFTER starting the legacy-service (Java HTTP server).
+// Uncomment AFTER starting the legacy-worker (Java HTTP server).
 // This registers an iii function that proxies to the legacy server.
 // The legacy code is never modified — iii connects to it externally.
 // ═══════════════════════════════════════════════════════════════════
@@ -128,7 +128,7 @@ console.log("");
 //       payload.body?.companyId ?? payload.companyId ?? "unknown";
 //     try {
 //       const response = await fetch(
-//         `${LEGACY_SERVICE_URL}/api/status?company=${companyId}`,
+//         `${LEGACY_WORKER_URL}/api/status?company=${companyId}`,
 //       );
 //       const data = await response.json();
 //       logger.info("Legacy system responded", { companyId });
@@ -152,7 +152,7 @@ console.log("");
 //   "✓ Step 4 complete: Legacy system connected without touching its code.",
 // );
 // console.log(
-//   "  → Next: Uncomment Step 5 (the ARR filter) in services/ai-agent/agent.py",
+//   "  → Next: Uncomment Step 5 (the ARR filter) in workers/ai-agent/agent.py",
 // );
 // console.log("");
 // --- UNCOMMENT STEP 4 END ---

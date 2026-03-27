@@ -1,4 +1,4 @@
-// This is the client - it makes calls to data-service and compute-service
+// This is the client - it makes calls to data-worker and compute-worker
 // In this usecase it can be thought of as an orchestrator
 // but there is no requirement from iii for a central orchestrator.
 
@@ -8,8 +8,8 @@ const iii = registerWorker(
 );
 const logger = new Logger();
 
-// In iii all services behave as a single application so it is
-// possible to set scoped state in one service and retrieve it in another.
+// In iii all workers behave as a single application so it is
+// possible to set scoped state in one worker and retrieve it in another.
 const WORKER_VERSION = 1;
 await iii.trigger({
   function_id: "state::set",
@@ -39,7 +39,7 @@ iii.registerTrigger({
 });
 
 // The advantage of this structure is that this code can directly trigger
-// functions that live in other services and even that use other languages.
+// functions that live in other workers and even that use other languages.
 const orchestrate = iii.registerFunction(
   { id: "client::orchestrate" },
   async (payload) => {
@@ -54,14 +54,14 @@ const orchestrate = iii.registerFunction(
     const body = payload.body ?? payload;
     const data = body.data ?? body;
 
-    // This is an async trigger to a Python service.
+    // This is an async trigger to a Python worker.
     const dataRequest = iii.trigger({
-      function_id: "data-service::transform",
+      function_id: "data-worker::transform",
       payload: { data },
     });
-    // This is an async trigger to a Rust service.
+    // This is an async trigger to a Rust worker.
     const computeRequest = iii.trigger({
-      function_id: "compute-service::compute",
+      function_id: "compute-worker::compute",
       payload: { n: body.n },
     });
 
@@ -72,32 +72,32 @@ const orchestrate = iii.registerFunction(
     ]);
 
     if (dataResult.status === "fulfilled") {
-      results.dataService = dataResult.value;
+      results.dataWorker = dataResult.value;
     } else {
-      logger.error("data-service error", dataResult.reason);
+      logger.error("data-worker error", dataResult.reason);
       results.errors.push(dataResult.reason);
     }
 
     if (computeResult.status === "fulfilled") {
-      results.computeService = computeResult.value;
+      results.computeWorker = computeResult.value;
     } else {
-      logger.error("compute-service error", computeResult.reason);
+      logger.error("compute-worker error", computeResult.reason);
       results.errors.push(computeResult.reason);
     }
 
-    // This is a trigger to an external service.
+    // This is a trigger to an external worker.
     try {
-      results.externalService = await iii.trigger({
-        function_id: "payment-service::record",
+      results.externalWorker = await iii.trigger({
+        function_id: "payment-worker::record",
         payload: { charge: 0.0001 },
       });
     } catch (error) {
-      logger.error("payment-service error", error);
+      logger.error("payment-worker error", error);
       results.errors.push(error);
     }
 
     results.success =
-      "Success! Open services/client/src/worker.ts and ./iii-config.yaml to see how this all worked or visit https://iii.dev/docs/concepts to learn more about the concepts powering iii";
+      "Success! Open workers/client/src/worker.ts and ./iii-config.yaml to see how this all worked or visit https://iii.dev/docs/concepts to learn more about the concepts powering iii";
 
     return { status: results.errors.length > 0 ? 500 : 200, body: results };
   },

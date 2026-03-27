@@ -1,14 +1,14 @@
 {
-  "name": "client",
+  "name": "payment-worker",
   "version": "0.1.0",
   "type": "module",
-  "description": "An example client or orchestration service",
+  "description": "An example 'external' payment worker",
   "scripts": {
-    "dev": "npx tsx --watch src/worker.ts",
+    "dev": "npx tsx --watch src/external-worker.ts",
     "build": "tsc"
   },
   "dependencies": {
-    "iii-sdk": "latest"
+    "iii-sdk": "^0.10.0"
   },
   "devDependencies": {
     "@types/node": "^25.2.2",

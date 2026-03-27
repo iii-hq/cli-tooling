@@ -1,7 +1,7 @@
 # AI Agents Quickstart
 
 Build an event-driven AI agent system step by step. You'll connect an account
-events service, a sales notification subscriber, an AI agent that analyzes
+events worker, a sales notification subscriber, an AI agent that analyzes
 strategic accounts, and a legacy Java CRM — all through the iii event bus.
 
 ## Architecture
@@ -26,7 +26,7 @@ strategic accounts, and a legacy Java CRM — all through the iii event bus.
        │ HTTP proxy
 ┌──────┴──────┐
 │   legacy-   │
-│   service   │
+│   worker    │
 │   (Java)    │
 └─────────────┘
 ```
@@ -36,13 +36,13 @@ strategic accounts, and a legacy Java CRM — all through the iii event bus.
 ### Required
 
 - **iii engine** installed (see https://iii.dev/docs)
-- **Node.js 20+** (for account-events service)
+- **Node.js 20+** (for account-events worker)
 
 ### Optional (or use Docker)
 
 - **Python 3.10+** (for ai-agent)
-- **Java JDK 17+** (for legacy-service, just `javac` and `java`)
-- **Docker** (to run all services via `docker compose`)
+- **Java JDK 17+** (for legacy-worker, just `javac` and `java`)
+- **Docker** (to run all workers via `docker compose`)
 
 ## Quick Start
 
@@ -54,17 +54,17 @@ iii -c iii-config.yaml
 
 ### 2. Follow the steps
 
-You can either run all services at once with Docker, or follow the guided
+You can either run all workers at once with Docker, or follow the guided
 step-by-step flow below (recommended for learning).
 
 #### Option A: Step-by-step (recommended)
 
-Each service prints console messages guiding you to the next step.
+Each worker prints console messages guiding you to the next step.
 
 **Step 1 — Start account-events:**
 
 ```bash
-cd services/account-events
+cd workers/account-events
 npm install
 npm run dev
 ```
@@ -77,7 +77,7 @@ curl -X POST http://localhost:3111/account/upgrade \
   -d '{"companyId":"acme-corp"}'
 ```
 
-**Step 2 — Uncomment sales notifications** in `services/account-events/src/worker.ts`:
+**Step 2 — Uncomment sales notifications** in `workers/account-events/src/worker.ts`:
 
 Find the `STEP 2` block and uncomment it. The file watcher will restart
 automatically. Run the curl command again and watch the sales notification
@@ -86,7 +86,7 @@ appear in the console.
 **Step 3 — Start the AI agent:**
 
 ```bash
-cd services/ai-agent
+cd workers/ai-agent
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -96,15 +96,15 @@ python agent.py
 Run the curl command again. You'll see the AI agent analyze the account in
 its console output.
 
-**Step 4 — Start the legacy service and uncomment the proxy:**
+**Step 4 — Start the legacy worker and uncomment the proxy:**
 
 ```bash
-cd services/legacy-service
+cd workers/legacy-worker
 javac LegacyServer.java
 java LegacyServer
 ```
 
-Then uncomment the `STEP 4` block in `services/account-events/src/worker.ts`.
+Then uncomment the `STEP 4` block in `workers/account-events/src/worker.ts`.
 Test the legacy endpoint:
 
 ```bash
@@ -115,7 +115,7 @@ curl -X POST http://localhost:3111/legacy/status \
 
 **Step 5 — Add the ARR filter:**
 
-Uncomment the `STEP 5` block in `services/ai-agent/agent.py`. Now test with
+Uncomment the `STEP 5` block in `workers/ai-agent/agent.py`. Now test with
 different companies:
 
 ```bash
@@ -132,7 +132,7 @@ curl -X POST http://localhost:3111/account/upgrade \
 
 **Step 6 (optional) — Enrich with legacy data:**
 
-Uncomment the `STEP 6` block in `services/ai-agent/agent.py` to have the AI
+Uncomment the `STEP 6` block in `workers/ai-agent/agent.py` to have the AI
 agent pull historical context from the legacy CRM when analyzing accounts.
 
 #### Option B: Docker Compose
@@ -141,7 +141,7 @@ agent pull historical context from the legacy CRM when analyzing accounts.
 docker compose up --build
 ```
 
-This starts all three services. You'll still want to follow the uncomment
+This starts all three workers. You'll still want to follow the uncomment
 steps in the source files to progressively enable features. Docker will
 detect file changes and rebuild automatically.
 
@@ -150,10 +150,10 @@ detect file changes and rebuild automatically.
 | Concept | Where you saw it |
 |---------|-----------------|
 | **Pub/Sub events** | `publish` + `subscribe` trigger for `account.upgraded` topic |
-| **Cross-worker triggers** | AI agent calling `accounts::get-details` in a different service |
+| **Cross-worker triggers** | AI agent calling `accounts::get-details` in a different worker |
 | **HTTP triggers** | `POST /account/upgrade` and `POST /legacy/status` endpoints |
 | **Legacy integration** | Java HTTP server connected via iii proxy — no SDK in the legacy code |
-| **Multi-language** | TypeScript orchestrator, Python AI agent, Java legacy service |
+| **Multi-language** | TypeScript orchestrator, Python AI agent, Java legacy worker |
 | **Observability** | ARR filter fix demonstrates scoping agent behavior with traces |
 
 Visit https://iii.dev/docs/concepts to learn more about the primitives powering iii.

@@ -1,4 +1,4 @@
-# Data Service - Data validation and transformation
+# Data Worker - Data validation and transformation
 # Demonstrates: register_function with Pydantic validation
 
 import asyncio
@@ -11,12 +11,12 @@ class TransformInput(BaseModel):
 
 iii = register_worker(
     os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"),
-    InitOptions(worker_name="data-service")
+    InitOptions(worker_name="data-worker")
 )
 logger = Logger()
 
 # Decorators are available
-# @iii.register_function({"id": "data-service::transform"})
+# @iii.register_function({"id": "data-worker::transform"})
 def transform_handler(payload: dict) -> dict:
     try:
         validated = TransformInput.model_validate(payload)
@@ -26,18 +26,18 @@ def transform_handler(payload: dict) -> dict:
 
     worker_version = iii.trigger({"function_id": "state::get", "payload": {"scope": "shared", "key": "WORKER_VERSION"}})
 
-    logger.info("Processing data with data-service...")
+    logger.info("Processing data with data-worker...")
 
     return {
         "transformed": validated.data,
         "keys": list(validated.data.keys()),
-        "source": "data-service",
+        "source": "data-worker",
         "worker-version": f"worker version {worker_version}"
     }
 
-iii.register_function({"id": "data-service::transform"}, transform_handler)
+iii.register_function({"id": "data-worker::transform"}, transform_handler)
 
-print("Data service started - listening for calls")
+print("Data worker started - listening for calls")
 
 loop = asyncio.new_event_loop()
 try:

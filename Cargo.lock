@@ -862,7 +862,7 @@ dependencies = [
 
 [[package]]
 name = "iii-tools"
-version = "0.1.2"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1084,7 +1084,7 @@ dependencies = [
 
 [[package]]
 name = "motia-tools"
-version = "0.1.2"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1541,7 +1541,7 @@ dependencies = [
 
 [[package]]
 name = "scaffolder-core"
-version = "0.1.2"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "clap",

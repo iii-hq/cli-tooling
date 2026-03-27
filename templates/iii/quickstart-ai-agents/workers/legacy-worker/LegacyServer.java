@@ -56,7 +56,7 @@ public class LegacyServer {
         });
 
         server.createContext("/api/health", exchange -> {
-            sendResponse(exchange, 200, "{\"status\":\"ok\",\"service\":\"legacy-crm\"}");
+            sendResponse(exchange, 200, "{\"status\":\"ok\",\"worker\":\"legacy-crm\"}");
         });
 
         server.setExecutor(null);
