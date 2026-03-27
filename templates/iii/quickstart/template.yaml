@@ -1,5 +1,5 @@
 name: Quickstart
-description: Learn the iii basics while orchestrating services
+description: Learn the iii basics while orchestrating workers
 version: "0.1.0"
 
 # Shown as "Included", always selected (not deselectable); runtime checks advisory
@@ -14,19 +14,19 @@ optional: []
 files:
   - README.md
   - iii-config.yaml
-  - services/client/package.json
-  - services/client/tsconfig.json
-  - services/client/src/worker.ts
-  - services/data-service/requirements.txt
-  - services/data-service/data_service.py
-  - services/compute-service/Cargo.toml
-  - services/compute-service/src/main.rs
-  - services/payment-service/package.json
-  - services/payment-service/tsconfig.json
-  - services/payment-service/src/external-service.ts
+  - workers/client/package.json
+  - workers/client/tsconfig.json
+  - workers/client/src/worker.ts
+  - workers/data-worker/requirements.txt
+  - workers/data-worker/data_worker.py
+  - workers/compute-worker/Cargo.toml
+  - workers/compute-worker/src/main.rs
+  - workers/payment-worker/package.json
+  - workers/payment-worker/tsconfig.json
+  - workers/payment-worker/src/external-worker.ts
   - docker-compose.yaml
-  - services/client/Dockerfile
-  - services/compute-service/Dockerfile
-  - services/compute-service/.dockerignore
-  - services/data-service/Dockerfile
-  - services/payment-service/Dockerfile
+  - workers/client/Dockerfile
+  - workers/compute-worker/Dockerfile
+  - workers/compute-worker/.dockerignore
+  - workers/data-worker/Dockerfile
+  - workers/payment-worker/Dockerfile

@@ -8,6 +8,6 @@ FROM debian:bookworm-slim
 ENV III_CONTAINER=docker
 ENV III_ENV=development
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/compute-service /app/
+COPY --from=builder /app/target/release/compute-worker /app/
 WORKDIR /app
-CMD ["./compute-service"]
+CMD ["./compute-worker"]
