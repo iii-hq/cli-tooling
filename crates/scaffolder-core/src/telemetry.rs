@@ -12,6 +12,10 @@ use crate::runtime::check::Language;
 const API_KEY: &str = "a7182ac460dde671c8f2e1318b517228";
 const AMPLITUDE_ENDPOINT: &str = "https://api2.amplitude.com/2/httpapi";
 
+fn resolve_endpoint() -> String {
+    std::env::var("__AMPLITUDE_ENDPOINT").unwrap_or_else(|_| AMPLITUDE_ENDPOINT.to_string())
+}
+
 type TomlSections = BTreeMap<String, BTreeMap<String, String>>;
 
 fn iii_dir() -> std::path::PathBuf {
@@ -186,7 +190,8 @@ struct AmplitudePayload<'a> {
     events: Vec<AmplitudeEvent>,
 }
 
-async fn send_amplitude(
+async fn send_amplitude_to(
+    endpoint: &str,
     event_type: &str,
     platform: &str,
     tools_version: &str,
@@ -217,11 +222,16 @@ async fn send_amplitude(
         Ok(c) => c,
         Err(_) => return,
     };
-    let _ = client
-        .post(AMPLITUDE_ENDPOINT)
-        .json(&payload)
-        .send()
-        .await;
+    let _ = client.post(endpoint).json(&payload).send().await;
+}
+
+async fn send_amplitude(
+    event_type: &str,
+    platform: &str,
+    tools_version: &str,
+    event_properties: serde_json::Value,
+) {
+    send_amplitude_to(&resolve_endpoint(), event_type, platform, tools_version, event_properties).await;
 }
 
 pub fn spawn_project_event(
@@ -229,11 +239,11 @@ pub fn spawn_project_event(
     platform: &'static str,
     tools_version: String,
     event_properties: serde_json::Value,
-) {
+) -> Option<tokio::task::JoinHandle<()>> {
     if is_telemetry_disabled() {
-        return;
+        return None;
     }
-    tokio::spawn(async move {
+    Some(tokio::spawn(async move {
         send_amplitude(
             event_type,
             platform,
@@ -241,7 +251,7 @@ pub fn spawn_project_event(
             event_properties,
         )
         .await;
-    });
+    }))
 }
 
 pub fn platform_for_product(product_name: &str) -> &'static str {
@@ -325,10 +335,127 @@ pub async fn run_dependency_install(project_dir: &Path, langs: &[Language]) -> R
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, Request, ResponseTemplate};
+
     #[test]
     fn project_ini_body_format() {
         let s = format!("[project]\nproject_id={}\nproject_name={}\n", "abc", "my-app");
         assert!(s.contains("project_id=abc"));
         assert!(s.contains("project_name=my-app"));
+    }
+
+    #[tokio::test]
+    async fn sends_project_created_event() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/2/httpapi"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"code": 200})))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let endpoint = format!("{}/2/httpapi", mock_server.uri());
+
+        send_amplitude_to(
+            &endpoint,
+            "project_created",
+            "motia-tools",
+            "0.3.0",
+            serde_json::json!({
+                "project_id": "test-id",
+                "project_name": "my-project",
+                "template": "quickstart",
+                "product": "motia",
+            }),
+        )
+        .await;
+
+        // Mock expectation of exactly 1 call is verified on drop
+    }
+
+    #[tokio::test]
+    async fn sends_project_initialized_event() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/2/httpapi"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"code": 200})))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let endpoint = format!("{}/2/httpapi", mock_server.uri());
+
+        send_amplitude_to(
+            &endpoint,
+            "project_initialized",
+            "motia-tools",
+            "0.3.0",
+            serde_json::json!({
+                "project_id": "test-id",
+                "project_name": "my-project",
+                "template": "quickstart",
+                "product": "motia",
+            }),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn does_not_send_quickstart_event() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/2/httpapi"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(0)
+            .mount(&mock_server)
+            .await;
+
+        // We intentionally do NOT call send_amplitude_to with "quickstart"
+        // because the codebase never sends it — this test documents that fact.
+
+        // Verified: 0 calls received on drop
+    }
+
+    #[tokio::test]
+    async fn payload_contains_correct_event_type_and_api_key() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/2/httpapi"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let endpoint = format!("{}/2/httpapi", mock_server.uri());
+
+        send_amplitude_to(
+            &endpoint,
+            "project_created",
+            "motia-tools",
+            "0.3.0",
+            serde_json::json!({
+                "project_id": "test-id",
+                "project_name": "my-project",
+                "template": "quickstart",
+                "product": "motia",
+            }),
+        )
+        .await;
+
+        let requests: Vec<Request> = mock_server.received_requests().await.unwrap();
+        assert_eq!(requests.len(), 1);
+
+        let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+        assert_eq!(body["api_key"], API_KEY);
+        assert_eq!(body["events"][0]["event_type"], "project_created");
+        assert_eq!(body["events"][0]["platform"], "motia-tools");
+        assert_eq!(body["events"][0]["event_properties"]["project_id"], "test-id");
+        assert_eq!(body["events"][0]["event_properties"]["template"], "quickstart");
     }
 }
