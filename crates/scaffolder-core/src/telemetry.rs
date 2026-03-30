@@ -12,8 +12,14 @@ use crate::runtime::check::Language;
 const API_KEY: &str = "a7182ac460dde671c8f2e1318b517228";
 const AMPLITUDE_ENDPOINT: &str = "https://api2.amplitude.com/2/httpapi";
 
+#[cfg(test)]
 fn resolve_endpoint() -> String {
     std::env::var("__AMPLITUDE_ENDPOINT").unwrap_or_else(|_| AMPLITUDE_ENDPOINT.to_string())
+}
+
+#[cfg(not(test))]
+fn resolve_endpoint() -> String {
+    AMPLITUDE_ENDPOINT.to_string()
 }
 
 type TomlSections = BTreeMap<String, BTreeMap<String, String>>;

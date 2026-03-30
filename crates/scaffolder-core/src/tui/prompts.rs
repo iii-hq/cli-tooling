@@ -583,10 +583,13 @@ async fn create_project(
         }),
     );
 
-    // Await telemetry tasks so they complete before the process exits
-    for handle in [created_handle, initialized_handle].into_iter().flatten() {
-        let _ = handle.await;
-    }
+    // Best-effort flush: wait up to 2s for telemetry to complete, then move on
+    let flush = async {
+        for handle in [created_handle, initialized_handle].into_iter().flatten() {
+            let _ = handle.await;
+        }
+    };
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(2), flush).await;
 
     Ok(())
 }
