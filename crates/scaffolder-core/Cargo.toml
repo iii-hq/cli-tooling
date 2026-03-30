@@ -37,3 +37,5 @@ ctrlc = { workspace = true, optional = true }
 
 [dev-dependencies]
 url = { workspace = true }
+wiremock = { workspace = true }
+tokio = { workspace = true, features = ["full", "macros"] }

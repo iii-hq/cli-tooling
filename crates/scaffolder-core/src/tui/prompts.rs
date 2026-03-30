@@ -543,7 +543,7 @@ async fn create_project(
 
     let platform = telemetry::platform_for_product(product_name);
     let tools_version = cli_version.to_string();
-    telemetry::spawn_project_event(
+    let created_handle = telemetry::spawn_project_event(
         "project_created",
         platform,
         tools_version.clone(),
@@ -571,7 +571,7 @@ async fn create_project(
         }
     }
 
-    telemetry::spawn_project_event(
+    let initialized_handle = telemetry::spawn_project_event(
         "project_initialized",
         platform,
         tools_version,
@@ -582,6 +582,14 @@ async fn create_project(
             "product": product_name,
         }),
     );
+
+    // Best-effort flush: wait up to 2s for telemetry to complete, then move on
+    let flush = async {
+        for handle in [created_handle, initialized_handle].into_iter().flatten() {
+            let _ = handle.await;
+        }
+    };
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(2), flush).await;
 
     Ok(())
 }

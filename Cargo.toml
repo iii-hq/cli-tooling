@@ -60,6 +60,7 @@ toml = "0.8"
 uuid = { version = "1", features = ["v4"] }
 serde_json = "1"
 sha2 = "0.10"
+wiremock = "0.6"
 
 # Local crates
 scaffolder-core = { path = "crates/scaffolder-core" }
