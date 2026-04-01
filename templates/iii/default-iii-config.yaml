@@ -1,4 +1,8 @@
 modules:
+  - class: modules::worker::WorkerModule
+    config:
+      port: 49134 # WebSocket protocol port — workers connect here
+
   - class: modules::stream::StreamModule
     config:
       port: ${STREAM_PORT:3112}
