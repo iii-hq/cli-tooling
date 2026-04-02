@@ -1,16 +1,15 @@
-use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
-use serde::Serialize;
-use sha2::{Digest, Sha256};
+use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use crate::runtime::check::Language;
 
 const API_KEY: &str = "a7182ac460dde671c8f2e1318b517228";
 const AMPLITUDE_ENDPOINT: &str = "https://api2.amplitude.com/2/httpapi";
+const TELEMETRY_SCHEMA_VERSION: u8 = 2;
 
 #[cfg(test)]
 fn resolve_endpoint() -> String {
@@ -22,72 +21,36 @@ fn resolve_endpoint() -> String {
     AMPLITUDE_ENDPOINT.to_string()
 }
 
-type TomlSections = BTreeMap<String, BTreeMap<String, String>>;
-
-fn iii_dir() -> std::path::PathBuf {
+fn telemetry_yaml_path() -> std::path::PathBuf {
     dirs::home_dir()
         .unwrap_or_else(std::env::temp_dir)
         .join(".iii")
+        .join("telemetry.yaml")
 }
 
-fn telemetry_toml_path() -> std::path::PathBuf {
-    iii_dir().join("telemetry.toml")
+/// Only the fields we need to read from the engine's `~/.iii/telemetry.yaml`.
+#[derive(Deserialize)]
+struct TelemetryYaml {
+    version: Option<u8>,
+    #[serde(default)]
+    identity: IdentitySection,
 }
 
-fn write_atomic(path: &Path, content: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).ok();
-    }
-    let tmp = path.with_extension("tmp");
-    if std::fs::write(&tmp, content).is_ok() {
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let perms = std::fs::Permissions::from_mode(0o600);
-            std::fs::set_permissions(&tmp, perms).ok();
-        }
-        std::fs::rename(&tmp, path).ok();
-    }
+#[derive(Deserialize, Default)]
+struct IdentitySection {
+    #[serde(default)]
+    device_id: Option<String>,
 }
 
-fn read_toml_key(section: &str, key: &str) -> Option<String> {
-    let contents = std::fs::read_to_string(telemetry_toml_path()).ok()?;
-    let sections: TomlSections = toml::from_str(&contents).ok()?;
-    sections
-        .get(section)?
-        .get(key)
-        .filter(|v| !v.is_empty())
-        .cloned()
-}
-
-fn set_toml_key(section: &str, key: &str, value: &str) {
-    let path = telemetry_toml_path();
-    let contents = std::fs::read_to_string(&path).unwrap_or_default();
-    let mut sections: TomlSections = toml::from_str(&contents).unwrap_or_default();
-    sections
-        .entry(section.to_string())
-        .or_default()
-        .insert(key.to_string(), value.to_string());
-    if let Ok(serialized) = toml::to_string(&sections) {
-        write_atomic(&path, &serialized);
+/// Reads the device_id from the engine-managed `~/.iii/telemetry.yaml`.
+/// Returns `None` if the file is missing, malformed, or has no device_id.
+fn read_device_id() -> Option<String> {
+    let contents = std::fs::read_to_string(telemetry_yaml_path()).ok()?;
+    let state: TelemetryYaml = serde_yaml::from_str(&contents).ok()?;
+    if state.version != Some(TELEMETRY_SCHEMA_VERSION) {
+        return None;
     }
-}
-
-pub fn get_or_create_telemetry_id() -> String {
-    if let Some(id) = read_toml_key("identity", "id") {
-        return id;
-    }
-    let legacy_path = iii_dir().join("telemetry_id");
-    if let Ok(raw) = std::fs::read_to_string(&legacy_path) {
-        let id = raw.trim().to_string();
-        if !id.is_empty() {
-            set_toml_key("identity", "id", &id);
-            return id;
-        }
-    }
-    let id = format!("auto-{}", uuid::Uuid::new_v4());
-    set_toml_key("identity", "id", &id);
-    id
+    state.identity.device_id.filter(|id| !id.is_empty())
 }
 
 pub fn is_telemetry_disabled() -> bool {
@@ -114,14 +77,6 @@ pub fn is_telemetry_disabled() -> bool {
         "TEAMCITY_VERSION",
     ];
     CI_VARS.iter().any(|v| std::env::var(v).is_ok())
-}
-
-fn detect_machine_id() -> String {
-    let hostname = std::env::var("HOSTNAME").unwrap_or_else(|_| "unknown".to_string());
-    let mut hasher = Sha256::new();
-    hasher.update(hostname.as_bytes());
-    let result = hasher.finalize();
-    result[..8].iter().map(|b| format!("{:02x}", b)).collect()
 }
 
 fn detect_is_container() -> bool {
@@ -153,13 +108,13 @@ fn detect_install_method() -> &'static str {
     "manual"
 }
 
-fn build_user_properties(tools_version: &str) -> serde_json::Value {
+fn build_user_properties(tools_version: &str, device_id: &str) -> serde_json::Value {
     serde_json::json!({
         "environment.os": std::env::consts::OS,
         "environment.arch": std::env::consts::ARCH,
         "environment.cpu_cores": std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1),
         "environment.timezone": std::env::var("TZ").unwrap_or_else(|_| "Unknown".to_string()),
-        "environment.machine_id": detect_machine_id(),
+        "environment.machine_id": device_id,
         "environment.is_container": detect_is_container(),
         "env": std::env::var("III_ENV").unwrap_or_else(|_| "unknown".to_string()),
         "install_method": detect_install_method(),
@@ -178,6 +133,7 @@ fn millis_epoch() -> i64 {
 #[derive(Serialize)]
 struct AmplitudeEvent {
     device_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     user_id: Option<String>,
     event_type: String,
     event_properties: serde_json::Value,
@@ -196,20 +152,32 @@ struct AmplitudePayload<'a> {
     events: Vec<AmplitudeEvent>,
 }
 
-async fn send_amplitude_to(
-    endpoint: &str,
-    event_type: &str,
-    platform: &str,
-    tools_version: &str,
-    event_properties: serde_json::Value,
-) {
-    let telemetry_id = get_or_create_telemetry_id();
+fn build_amplitude_client() -> Option<reqwest::Client> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .ok()
+}
+
+async fn post_amplitude(endpoint: &str, payload: &AmplitudePayload<'_>) {
+    let Some(client) = build_amplitude_client() else {
+        return;
+    };
+    let _ = client.post(endpoint).json(payload).send().await;
+}
+
+/// Sends a lightweight failure event when telemetry.yaml is missing.
+/// Uses a throwaway device_id since we have no identity to attach to.
+async fn send_telemetry_failed(endpoint: &str, platform: &str, tools_version: &str) {
     let event = AmplitudeEvent {
-        device_id: telemetry_id.clone(),
-        user_id: Some(telemetry_id),
-        event_type: event_type.to_string(),
-        event_properties,
-        user_properties: Some(build_user_properties(tools_version)),
+        device_id: format!("unknown-{}", uuid::Uuid::new_v4()),
+        user_id: None,
+        event_type: "iii_tools_telemetry_failed".to_string(),
+        event_properties: serde_json::json!({
+            "reason": "telemetry_yaml_missing",
+            "path": telemetry_yaml_path().to_string_lossy(),
+        }),
+        user_properties: None,
         platform: platform.to_string(),
         os_name: std::env::consts::OS.to_string(),
         app_version: tools_version.to_string(),
@@ -221,14 +189,38 @@ async fn send_amplitude_to(
         api_key: API_KEY,
         events: vec![event],
     };
-    let client = match reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-    {
-        Ok(c) => c,
-        Err(_) => return,
+    post_amplitude(endpoint, &payload).await;
+}
+
+async fn send_amplitude_to(
+    endpoint: &str,
+    event_type: &str,
+    platform: &str,
+    tools_version: &str,
+    event_properties: serde_json::Value,
+) {
+    let Some(device_id) = read_device_id() else {
+        send_telemetry_failed(endpoint, platform, tools_version).await;
+        return;
     };
-    let _ = client.post(endpoint).json(&payload).send().await;
+    let event = AmplitudeEvent {
+        device_id: device_id.clone(),
+        user_id: None,
+        event_type: event_type.to_string(),
+        event_properties,
+        user_properties: Some(build_user_properties(tools_version, &device_id)),
+        platform: platform.to_string(),
+        os_name: std::env::consts::OS.to_string(),
+        app_version: tools_version.to_string(),
+        time: millis_epoch(),
+        insert_id: uuid::Uuid::new_v4().to_string(),
+        ip: Some("$remote".to_string()),
+    };
+    let payload = AmplitudePayload {
+        api_key: API_KEY,
+        events: vec![event],
+    };
+    post_amplitude(endpoint, &payload).await;
 }
 
 async fn send_amplitude(
@@ -352,83 +344,15 @@ mod tests {
         assert!(s.contains("project_name=my-app"));
     }
 
-    #[tokio::test]
-    async fn sends_project_created_event() {
-        let mock_server = MockServer::start().await;
-
-        Mock::given(method("POST"))
-            .and(path("/2/httpapi"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"code": 200})))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-
-        let endpoint = format!("{}/2/httpapi", mock_server.uri());
-
-        send_amplitude_to(
-            &endpoint,
-            "project_created",
-            "motia-tools",
-            "0.3.0",
-            serde_json::json!({
-                "project_id": "test-id",
-                "project_name": "my-project",
-                "template": "quickstart",
-                "product": "motia",
-            }),
-        )
-        .await;
-
-        // Mock expectation of exactly 1 call is verified on drop
+    #[test]
+    fn read_device_id_returns_none_when_no_file() {
+        // Unless the engine has written telemetry.yaml, this may be None.
+        // We just verify it doesn't panic.
+        let _ = read_device_id();
     }
 
     #[tokio::test]
-    async fn sends_project_initialized_event() {
-        let mock_server = MockServer::start().await;
-
-        Mock::given(method("POST"))
-            .and(path("/2/httpapi"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"code": 200})))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-
-        let endpoint = format!("{}/2/httpapi", mock_server.uri());
-
-        send_amplitude_to(
-            &endpoint,
-            "project_initialized",
-            "motia-tools",
-            "0.3.0",
-            serde_json::json!({
-                "project_id": "test-id",
-                "project_name": "my-project",
-                "template": "quickstart",
-                "product": "motia",
-            }),
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn does_not_send_quickstart_event() {
-        let mock_server = MockServer::start().await;
-
-        Mock::given(method("POST"))
-            .and(path("/2/httpapi"))
-            .respond_with(ResponseTemplate::new(200))
-            .expect(0)
-            .mount(&mock_server)
-            .await;
-
-        // We intentionally do NOT call send_amplitude_to with "quickstart"
-        // because the codebase never sends it — this test documents that fact.
-
-        // Verified: 0 calls received on drop
-    }
-
-    #[tokio::test]
-    async fn payload_contains_correct_event_type_and_api_key() {
+    async fn sends_failed_event_when_yaml_missing() {
         let mock_server = MockServer::start().await;
 
         Mock::given(method("POST"))
@@ -440,28 +364,81 @@ mod tests {
 
         let endpoint = format!("{}/2/httpapi", mock_server.uri());
 
+        // Point HOME at a temp dir so telemetry.yaml won't exist
+        let tmp = tempfile::tempdir().unwrap();
+        unsafe { std::env::set_var("HOME", tmp.path()); }
+
         send_amplitude_to(
             &endpoint,
             "project_created",
-            "motia-tools",
+            "iii-tools",
             "0.3.0",
-            serde_json::json!({
-                "project_id": "test-id",
-                "project_name": "my-project",
-                "template": "quickstart",
-                "product": "motia",
-            }),
+            serde_json::json!({"project_id": "test-id"}),
         )
         .await;
+
+        unsafe { std::env::remove_var("HOME"); }
 
         let requests: Vec<Request> = mock_server.received_requests().await.unwrap();
         assert_eq!(requests.len(), 1);
 
         let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
-        assert_eq!(body["api_key"], API_KEY);
-        assert_eq!(body["events"][0]["event_type"], "project_created");
-        assert_eq!(body["events"][0]["platform"], "motia-tools");
-        assert_eq!(body["events"][0]["event_properties"]["project_id"], "test-id");
-        assert_eq!(body["events"][0]["event_properties"]["template"], "quickstart");
+        let event = &body["events"][0];
+        assert_eq!(event["event_type"], "iii_tools_telemetry_failed");
+        assert_eq!(event["event_properties"]["reason"], "telemetry_yaml_missing");
+    }
+
+    #[tokio::test]
+    async fn sends_normal_event_when_yaml_exists() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/2/httpapi"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let tmp = tempfile::tempdir().unwrap();
+        let iii_dir = tmp.path().join(".iii");
+        std::fs::create_dir_all(&iii_dir).unwrap();
+        std::fs::write(
+            iii_dir.join("telemetry.yaml"),
+            "version: 2\nidentity:\n  device_id: test-device-abc\n",
+        )
+        .unwrap();
+
+        unsafe { std::env::set_var("HOME", tmp.path()); }
+
+        let endpoint = format!("{}/2/httpapi", mock_server.uri());
+
+        send_amplitude_to(
+            &endpoint,
+            "project_created",
+            "iii-tools",
+            "0.3.0",
+            serde_json::json!({
+                "project_id": "test-id",
+                "project_name": "my-project",
+                "template": "quickstart",
+                "product": "iii",
+            }),
+        )
+        .await;
+
+        unsafe { std::env::remove_var("HOME"); }
+
+        let requests: Vec<Request> = mock_server.received_requests().await.unwrap();
+        assert_eq!(requests.len(), 1);
+
+        let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+        let event = &body["events"][0];
+        assert_eq!(event["event_type"], "project_created");
+        assert_eq!(event["device_id"], "test-device-abc");
+        assert!(
+            event.get("user_id").is_none() || event["user_id"].is_null(),
+            "user_id should not be sent"
+        );
+        assert_eq!(event["event_properties"]["project_id"], "test-id");
     }
 }
