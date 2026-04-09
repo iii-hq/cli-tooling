@@ -1,0 +1,4 @@
+name: client
+runtime:
+  language: typescript
+  entry: src/worker.ts

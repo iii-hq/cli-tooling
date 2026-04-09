@@ -1,0 +1,3 @@
+name: compute-worker
+runtime:
+  language: rust

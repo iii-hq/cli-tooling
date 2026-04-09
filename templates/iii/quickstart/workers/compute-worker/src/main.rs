@@ -1,27 +1,17 @@
-// Compute Worker - High-performance computation
-// Demonstrates: register_function with async handler
-
-use iii_sdk::{register_worker, RegisterFunctionMessage, Value};
+use iii_sdk::{register_worker, RegisterFunction, Value};
 use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = std::env::var("III_BRIDGE_URL")
+    let url = std::env::var("III_URL")
         .unwrap_or_else(|_| "ws://localhost:49134".into());
     let iii = register_worker(&url, Default::default());
 
-    iii.register_function((
-        RegisterFunctionMessage {
-            id: "compute-worker::compute".to_string(),
-            description: None,
-            request_format: None,
-            response_format: None,
-            metadata: None,
-            invocation: None,
-        },
+    iii.register_function(RegisterFunction::new_async(
+        "compute-worker::compute",
         |input: Value| async move {
             let n = input.get("n").and_then(|v| v.as_u64()).unwrap_or(10);
-            tokio::time::sleep(Duration::from_millis(100)).await; // Simulates processing latency
+            tokio::time::sleep(Duration::from_millis(100)).await;
 
             Ok(serde_json::json!({
                 "result": n * 2,

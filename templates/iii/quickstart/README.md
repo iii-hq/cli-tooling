@@ -1,79 +1,47 @@
 # Welcome to iii
 
-This is the iii quickstart project, it's intended to demonstrate how iii works,
-teach the basics of using iii, and show the power of having seamless orchestration.
+This quickstart demonstrates how iii orchestrates workers across languages.
+The `workers/` folder contains a TypeScript **client** and **payment-worker**,
+a Rust **compute-worker**, and a Python **data-worker**. Each runs in an
+isolated microVM sandbox via `iii worker dev`.
 
-One of the first things you might notice is that the `workers/` folder contains
-`client` and `payment-worker` TypeScript projects, a Rust `compute-worker`, and
-a Python `data-worker`. For demonstration these workers are all in the
-same project. The languages for each worker, and project structure are chosen
-only for the convenience of demonstration.
-
-These workers can easily be located in their own projects,
-written in other languages, or already running on servers where
-only API access is available.
-
-Check the `workers/client/src/worker.ts` file to see how this works.
-The iii Node SDK is functionally identical to the iii's SDKs for other languages.
+Check `workers/client/src/worker.ts` to see how the orchestration works.
 
 ## Prerequisites
 
-### Required
+- **iii** installed (https://iii.dev/docs)
+- **macOS Apple Silicon** or **Linux with KVM** (required for `iii worker dev`)
 
-- **iii engine** installed (see https://iii.dev/docs for details)
-- **Node.js** (for client, and payment-worker)
-
-### Optional
-
-- **Docker** (to run workers via `docker compose` see step 2)
-- **Python 3** (for data-worker when running natively)
-- **Rust/Cargo** (for compute-worker when running natively)
+> **Windows users:** Run inside WSL 2 with KVM support enabled.
 
 ## Quick Start
 
-### 1. Start the iii engine
+### 1. Start the engine
 
 ```bash
-iii -c iii-config.yaml
+iii
 ```
 
-### 2. Start the workers
-
-#### Option A: Docker Compose
+### 2. Start each worker in a separate terminal
 
 ```bash
-docker compose up --build
+iii worker dev ./workers/client
 ```
-
-This will start the complete worker architecture.
-
-#### Option B: Run each in a separate terminal
-
-While it's not necessary to start all workers at least Client and Payment Worker
-need to be running.
 
 ```bash
-# Client (TypeScript orchestrator)
-cd workers/client
-npm install
-npm run dev
-
-# Payment Worker (TypeScript)
-cd workers/payment-worker
-npm install
-npm run dev
-
-# Compute Worker (Rust)
-cd workers/compute-worker
-cargo run
-
-# Data Worker (Python)
-cd workers/data-worker
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python data_worker.py
+iii worker dev ./workers/payment-worker
 ```
+
+```bash
+iii worker dev ./workers/data-worker
+```
+
+```bash
+iii worker dev ./workers/compute-worker
+```
+
+Not all workers are required — the application still works with whichever
+workers are running and reports errors for any that are missing.
 
 ### 3. Try it out
 
@@ -83,33 +51,16 @@ curl -X POST http://localhost:3111/orchestrate \
   -d '{"data":{"message":"hello from client"},"n":42}' | jq
 ```
 
-If all workers are running the output will look like the below.
-If some workers aren't the application will still run the available
-workers and there will be error reports both in the JSON returned
-and on the iii console output.
+With all workers running the output looks like:
 
 ```json
 {
   "client": "ok",
   "computeWorker": { "input": 42, "result": 84, "source": "compute-worker" },
   "dataWorker": {
-    "keys": [
-      "body",
-      "headers",
-      "method",
-      "path",
-      "path_params",
-      "query_params",
-      "trigger"
-    ],
+    "keys": ["message"],
     "source": "data-worker",
-    "transformed": {
-      "body": { "data": { "message": "hello from client" }, "n": 42 },
-      "headers": "...",
-      "method": "POST",
-      "path": "orchestrate",
-      "trigger": "..."
-    }
+    "transformed": { "message": "hello from client" }
   },
   "errors": [],
   "externalWorker": {
@@ -120,13 +71,13 @@ and on the iii console output.
 }
 ```
 
-Congratulations! This project executed functions across 3 languages, 4 worker boundaries,
-with complete observability, and automatic asynchronous retries.
+### 4. Try the iii Console
 
-## Review the code
+```bash
+iii console
+```
 
-Look at `workers/client/src/worker.ts` and visit https://iii.dev/docs/concepts
-to learn how iii connected all of these workers.
+Open http://localhost:3113/ to see logs, traces, and runtime state.
 
 ## Architecture
 
@@ -142,6 +93,11 @@ to learn how iii connected all of these workers.
     └──────────┘ └─────────┘ └───────┘ └──────────┘
 ```
 
-Workers communicate via the iii engine regardless of language and with iii
-performing the central orchestration it is possible to trigger functions across
-processes, languages, workers, domains, and application boundaries.
+Workers communicate via the engine regardless of language. Functions can be
+triggered across processes, languages, and application boundaries.
+
+## Next Steps
+
+- Explore `workers/client/src/worker.ts` to understand the orchestration
+- Edit `config.yaml` to customize engine workers
+- Visit https://iii.dev/docs/concepts to learn about Functions, Triggers, and Workers

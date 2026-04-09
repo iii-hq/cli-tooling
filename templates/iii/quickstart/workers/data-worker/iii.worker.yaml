@@ -1,0 +1,4 @@
+name: data-worker
+runtime:
+  language: python
+  entry: data_worker.py

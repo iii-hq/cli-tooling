@@ -1,0 +1,4 @@
+name: payment-worker
+runtime:
+  language: typescript
+  entry: src/external-worker.ts

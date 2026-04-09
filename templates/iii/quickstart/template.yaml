@@ -14,20 +14,17 @@ optional: []
 # Explicit list of files to copy (shared_files from root are added automatically)
 files:
   - README.md
-  - iii-config.yaml
   - workers/client/package.json
   - workers/client/tsconfig.json
+  - workers/client/iii.worker.yaml
   - workers/client/src/worker.ts
   - workers/data-worker/requirements.txt
+  - workers/data-worker/iii.worker.yaml
   - workers/data-worker/data_worker.py
   - workers/compute-worker/Cargo.toml
+  - workers/compute-worker/iii.worker.yaml
   - workers/compute-worker/src/main.rs
   - workers/payment-worker/package.json
   - workers/payment-worker/tsconfig.json
+  - workers/payment-worker/iii.worker.yaml
   - workers/payment-worker/src/external-worker.ts
-  - docker-compose.yaml
-  - workers/client/Dockerfile
-  - workers/compute-worker/Dockerfile
-  - workers/compute-worker/.dockerignore
-  - workers/data-worker/Dockerfile
-  - workers/payment-worker/Dockerfile
