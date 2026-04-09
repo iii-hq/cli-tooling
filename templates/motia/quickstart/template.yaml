@@ -2,6 +2,7 @@
 name: Quickstart
 description: Learn the very basics of Motia. If you're just getting started then start here!
 version: "0.1.0"
+min_iii_version: "0.11.0"
 
 # Languages that must be included (user cannot deselect)
 requires:

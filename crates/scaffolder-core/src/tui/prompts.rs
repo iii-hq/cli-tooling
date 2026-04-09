@@ -61,7 +61,7 @@ pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &s
     let (template_name, manifest, language_files) =
         select_template(&mut fetcher, args.template.as_deref()).await?;
 
-    // Check version compatibility
+    // Check version compatibility (CLI tools version — advisory)
     if let Some(warning) =
         version::check_compatibility(cli_version, &manifest.version, config.upgrade_command())
     {
@@ -69,6 +69,19 @@ pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &s
             "Version warning: {}",
             warning.lines().next().unwrap_or(&warning)
         ))?;
+    }
+
+    // Check iii engine version compatibility (hard block)
+    if let Some(min_ver) = &manifest.min_iii_version {
+        match version::check_iii_engine_version(min_ver) {
+            Ok(installed) => {
+                cliclack::log::success(format!("iii engine {} (>= {} required)", installed, min_ver))?;
+            }
+            Err(msg) => {
+                cliclack::log::error(&msg)?;
+                anyhow::bail!("{}", msg);
+            }
+        }
     }
 
     // Step 4: Select directory

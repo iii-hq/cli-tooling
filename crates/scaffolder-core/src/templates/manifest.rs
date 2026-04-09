@@ -145,6 +145,11 @@ pub struct TemplateManifest {
     /// Semver version for CLI compatibility checking
     pub version: String,
 
+    /// Minimum iii engine version required (checked via `iii --version`)
+    /// When set, the CLI will hard-block if the installed iii version is too old.
+    #[serde(default)]
+    pub min_iii_version: Option<String>,
+
     /// Languages that must be included (user cannot deselect)
     #[serde(default)]
     pub requires: Vec<String>,
