@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let n = input.get("n").and_then(|v| v.as_u64()).unwrap_or(10);
             tokio::time::sleep(Duration::from_millis(100)).await;
 
-            Ok(serde_json::json!({
+            Ok::<_, iii_sdk::IIIError>(serde_json::json!({
                 "result": n * 2,
                 "input": n,
                 "source": "compute-worker"
