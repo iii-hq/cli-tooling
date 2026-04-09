@@ -7,9 +7,7 @@
 
 #![allow(dead_code)]
 
-use scaffolder_core::{
-    copy_template, Language, RootManifest, TemplateFetcher, TemplateManifest,
-};
+use scaffolder_core::{copy_template, Language, RootManifest, TemplateFetcher, TemplateManifest};
 use serde::Deserialize;
 use serde_json::Value;
 use std::net::TcpStream;
@@ -135,9 +133,7 @@ impl Scenario {
         if let Some(status) = child.try_wait().unwrap() {
             let stderr = read_child_stderr(&mut child).await;
             let stdout = read_child_stdout(&mut child).await;
-            panic!(
-                "engine exited immediately with {status}\nstdout: {stdout}\nstderr: {stderr}"
-            );
+            panic!("engine exited immediately with {status}\nstdout: {stdout}\nstderr: {stderr}");
         }
 
         self.children.push((child, "iii-engine".to_string()));
@@ -287,9 +283,7 @@ impl Scenario {
 
         loop {
             if start.elapsed() > timeout {
-                panic!(
-                    "timed out after {timeout:?} waiting for HTTP at {url}"
-                );
+                panic!("timed out after {timeout:?} waiting for HTTP at {url}");
             }
 
             match self.http_client.get(&url).send().await {
@@ -380,7 +374,9 @@ impl Scenario {
 
             // Send SIGTERM via kill(2)
             if pid > 0 {
-                unsafe { libc::kill(pid as i32, libc::SIGTERM); }
+                unsafe {
+                    libc::kill(pid as i32, libc::SIGTERM);
+                }
             }
 
             match tokio::time::timeout(Duration::from_secs(5), child.wait()).await {
@@ -407,7 +403,9 @@ impl Drop for Scenario {
             eprintln!("[e2e] drop: force-killing '{label}' (pid={pid})");
             let _ = child.start_kill();
             if pid > 0 {
-                unsafe { libc::kill(pid as i32, libc::SIGKILL); }
+                unsafe {
+                    libc::kill(pid as i32, libc::SIGKILL);
+                }
             }
         }
         self.children.clear();
@@ -429,7 +427,9 @@ fn kill_port_holder(port: u16) {
         for pid_str in pids.split_whitespace() {
             if let Ok(pid) = pid_str.parse::<i32>() {
                 eprintln!("[e2e] killing pid {pid} on port {port}");
-                unsafe { libc::kill(pid, libc::SIGKILL); }
+                unsafe {
+                    libc::kill(pid, libc::SIGKILL);
+                }
             }
         }
     }
@@ -563,22 +563,38 @@ fn iii_mono_root() -> Option<PathBuf> {
         .canonicalize()
         .ok()?;
     let mono = workspace.parent()?.join("iii-mono");
-    if mono.is_dir() { Some(mono) } else { None }
+    if mono.is_dir() {
+        Some(mono)
+    } else {
+        None
+    }
 }
 
 fn local_node_sdk() -> Option<PathBuf> {
     let p = iii_mono_root()?.join("sdk/packages/node/iii");
-    if p.join("package.json").exists() { Some(p) } else { None }
+    if p.join("package.json").exists() {
+        Some(p)
+    } else {
+        None
+    }
 }
 
 fn local_python_sdk() -> Option<PathBuf> {
     let p = iii_mono_root()?.join("sdk/packages/python/iii");
-    if p.join("pyproject.toml").exists() { Some(p) } else { None }
+    if p.join("pyproject.toml").exists() {
+        Some(p)
+    } else {
+        None
+    }
 }
 
 fn local_rust_sdk() -> Option<PathBuf> {
     let p = iii_mono_root()?.join("sdk/packages/rust/iii");
-    if p.join("Cargo.toml").exists() { Some(p) } else { None }
+    if p.join("Cargo.toml").exists() {
+        Some(p)
+    } else {
+        None
+    }
 }
 
 /// Rewrite package.json to point iii-sdk at a local file: path.
@@ -597,7 +613,10 @@ fn patch_node_sdk(worker_dir: &Path, sdk_path: &Path) {
             deps.insert("iii-sdk".to_string(), Value::String(sdk_file_ref.clone()));
         }
     }
-    if let Some(deps) = pkg.get_mut("devDependencies").and_then(|d| d.as_object_mut()) {
+    if let Some(deps) = pkg
+        .get_mut("devDependencies")
+        .and_then(|d| d.as_object_mut())
+    {
         if deps.contains_key("iii-sdk") {
             deps.insert("iii-sdk".to_string(), Value::String(sdk_file_ref));
         }
@@ -642,11 +661,19 @@ async fn install_python_deps_with_local_sdk(pip: &str, dir: &Path, sdk_path: &Pa
     if !filtered.is_empty() {
         let filtered_path = dir.join("requirements-filtered.txt");
         std::fs::write(&filtered_path, filtered.join("\n")).unwrap();
-        run_cmd(pip, &["install", "-q", "-r", "requirements-filtered.txt"], dir).await;
+        run_cmd(
+            pip,
+            &["install", "-q", "-r", "requirements-filtered.txt"],
+            dir,
+        )
+        .await;
     }
 
     run_cmd(pip, &["install", "-q", sdk_path.to_str().unwrap()], dir).await;
-    eprintln!("[e2e] installed local Python SDK from {}", sdk_path.display());
+    eprintln!(
+        "[e2e] installed local Python SDK from {}",
+        sdk_path.display()
+    );
 }
 
 async fn run_cmd(program: &str, args: &[&str], dir: &Path) {

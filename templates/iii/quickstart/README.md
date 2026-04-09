@@ -18,13 +18,23 @@ Check `workers/client/src/worker.ts` to see how the orchestration works.
 
 ## Quick Start
 
-### 1. Start the engine
+### 1. Add engine modules needed by the workers
+
+Each module only needs to be added once — every connected worker can use it.
+
+```bash
+iii worker add iii-http   # client: HTTP endpoints (/health, /orchestrate)
+iii worker add iii-state  # client + data-worker: shared key-value state
+iii worker add iii-cron   # client: scheduled health check
+```
+
+### 2. Start the engine
 
 ```bash
 iii
 ```
 
-### 2. Start each worker in a separate terminal
+### 3. Start each worker in a separate terminal
 
 ```bash
 iii worker dev ./workers/client
@@ -45,7 +55,7 @@ iii worker dev ./workers/compute-worker
 Only the client worker is required for this demo. The application still works
 with whichever other workers are running and reports errors for any that are missing.
 
-### 3. Try it out
+### 4. Try it out
 
 ```bash
 curl -X POST http://localhost:3111/orchestrate \
@@ -73,7 +83,7 @@ With all workers running the output looks like:
 }
 ```
 
-### 4. Try the iii Console
+### 5. Try the iii Console
 
 ```bash
 iii console

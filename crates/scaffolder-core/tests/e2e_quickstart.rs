@@ -24,6 +24,10 @@ async fn quickstart_orchestrate_returns_all_workers() {
         .build()
         .await;
 
+    scenario.run_iii(&["worker", "add", "iii-http"]).await;
+    scenario.run_iii(&["worker", "add", "iii-state"]).await;
+    scenario.run_iii(&["worker", "add", "iii-cron"]).await;
+
     scenario.read_http_port();
     scenario.start_engine().await;
     scenario.start_workers().await;
@@ -42,7 +46,10 @@ async fn quickstart_orchestrate_returns_all_workers() {
 
     let status = resp.status();
     let body: serde_json::Value = resp.json().await.unwrap();
-    eprintln!("[test] response status={status}, body={}", serde_json::to_string_pretty(&body).unwrap());
+    eprintln!(
+        "[test] response status={status}, body={}",
+        serde_json::to_string_pretty(&body).unwrap()
+    );
 
     assert_eq!(status, 200, "orchestrate should return 200");
     assert_eq!(body["client"], "ok", "body: {body}");
@@ -51,12 +58,23 @@ async fn quickstart_orchestrate_returns_all_workers() {
         "expected no errors, got: {}",
         body["errors"]
     );
-    assert_eq!(body["computeWorker"]["result"], 84, "computeWorker: {}", body["computeWorker"]);
-    assert_eq!(body["computeWorker"]["input"], 42, "computeWorker: {}", body["computeWorker"]);
-    assert_eq!(body["dataWorker"]["source"], "data-worker", "dataWorker: {}", body["dataWorker"]);
     assert_eq!(
-        body["externalWorker"]["body"]["message"],
-        "Payment recorded",
+        body["computeWorker"]["result"], 84,
+        "computeWorker: {}",
+        body["computeWorker"]
+    );
+    assert_eq!(
+        body["computeWorker"]["input"], 42,
+        "computeWorker: {}",
+        body["computeWorker"]
+    );
+    assert_eq!(
+        body["dataWorker"]["source"], "data-worker",
+        "dataWorker: {}",
+        body["dataWorker"]
+    );
+    assert_eq!(
+        body["externalWorker"]["body"]["message"], "Payment recorded",
         "externalWorker: {}",
         body["externalWorker"]
     );
@@ -70,6 +88,10 @@ async fn quickstart_health_endpoint_returns_ok() {
     let mut scenario = e2e_harness::Scenario::builder("quickstart", "iii")
         .build()
         .await;
+
+    scenario.run_iii(&["worker", "add", "iii-http"]).await;
+    scenario.run_iii(&["worker", "add", "iii-state"]).await;
+    scenario.run_iii(&["worker", "add", "iii-cron"]).await;
 
     scenario.read_http_port();
     scenario.start_engine().await;
@@ -85,7 +107,10 @@ async fn quickstart_health_endpoint_returns_ok() {
 
     let status = resp.status();
     let body: serde_json::Value = resp.json().await.unwrap();
-    eprintln!("[test] response status={status}, body={}", serde_json::to_string_pretty(&body).unwrap());
+    eprintln!(
+        "[test] response status={status}, body={}",
+        serde_json::to_string_pretty(&body).unwrap()
+    );
 
     assert_eq!(status, 200, "health should return 200");
     assert_eq!(body["healthy"], true, "body: {body}");
