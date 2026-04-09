@@ -109,6 +109,31 @@ impl Scenario {
         }
     }
 
+    /// Run an `iii` CLI command and return its stdout. Panics on non-zero exit.
+    pub async fn run_iii_with_output(&self, args: &[&str]) -> String {
+        let bin = iii_bin();
+        let output = Command::new(&bin)
+            .args(args)
+            .current_dir(self.project_dir.path())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await
+            .unwrap_or_else(|e| panic!("failed to run {bin}: {e}"));
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            panic!(
+                "iii {} exited with {}\nstdout: {stdout}\nstderr: {stderr}",
+                args.join(" "),
+                output.status
+            );
+        }
+
+        String::from_utf8_lossy(&output.stdout).into_owned()
+    }
+
     // -- Engine ---------------------------------------------------------
 
     /// Start the iii engine as a background process.

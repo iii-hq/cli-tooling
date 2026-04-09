@@ -1,6 +1,7 @@
 # Root template manifest for iii - lists available templates by folder name
 templates:
   - quickstart
+  - cross-language-math
   # - quickstart-ai-agents
   # - starter
 
