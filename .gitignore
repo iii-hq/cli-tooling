@@ -388,7 +388,6 @@ target
 
 .vscode
 .mypy*
-test*
 .DS_Store
 
 .omc/

@@ -25,6 +25,7 @@ language_files:
     - "LICENSE"
     - "LICENSE*"
     - "*.config.yaml"
+    - "*-config.yaml"
     - "config.yaml"
 
   # Files only included when Python is selected
