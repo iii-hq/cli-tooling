@@ -1,6 +1,8 @@
 # Welcome to iii
 
-This quickstart demonstrates how iii orchestrates workers across languages.
+This quickstart demonstrates how iii transforms all backend functionality
+into workers that can operate, scale, and error independently of each other.
+
 The `workers/` folder contains a TypeScript **client** and **payment-worker**,
 a Rust **compute-worker**, and a Python **data-worker**. Each runs in an
 isolated microVM sandbox via `iii worker dev`.
@@ -40,8 +42,8 @@ iii worker dev ./workers/data-worker
 iii worker dev ./workers/compute-worker
 ```
 
-Not all workers are required — the application still works with whichever
-workers are running and reports errors for any that are missing.
+Only the client worker is required for this demo. The application still works
+with whichever other workers are running and reports errors for any that are missing.
 
 ### 3. Try it out
 
@@ -100,4 +102,4 @@ triggered across processes, languages, and application boundaries.
 
 - Explore `workers/client/src/worker.ts` to understand the orchestration
 - Edit `config.yaml` to customize engine workers
-- Visit https://iii.dev/docs/concepts to learn about Functions, Triggers, and Workers
+- Visit https://iii.dev/docs/concepts to learn more about Workers, Triggers, and Functions
