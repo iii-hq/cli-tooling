@@ -1,8 +1,9 @@
 pnpm-lock.yaml
 types.d.ts
-# iii unifying backend engine files
+# iii for unreasonably simple backend engineering 
 .env
 data/
+*.zip
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
