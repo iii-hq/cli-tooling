@@ -18,9 +18,9 @@ Check `workers/client/src/worker.ts` to see how the orchestration works.
 
 ## Quick Start
 
-### 1. Add engine modules needed by the workers
+### 1. Add pre-built workers
 
-Each module only needs to be added once — every connected worker can use it.
+Each worker only needs to be added once and then every other worker can use it.
 
 ```bash
 iii worker add iii-http   # client: HTTP endpoints (/health, /orchestrate)
@@ -34,7 +34,7 @@ iii worker add iii-cron   # client: scheduled health check
 iii
 ```
 
-### 3. Start each worker in a separate terminal
+### 3. Start the custom workers in a separate terminal
 
 ```bash
 iii worker dev ./workers/client
