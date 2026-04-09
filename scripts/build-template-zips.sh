@@ -27,8 +27,4 @@ else
     cargo run --quiet -p iii-tools -- build-zips --template-dir=./templates/iii
 fi
 
-# Stage the zip files for git
-git add templates/motia/*.zip 2>/dev/null || true
-git add templates/iii/*.zip 2>/dev/null || true
-
-echo "Template zips staged for commit"
+echo "Template zips built successfully"
