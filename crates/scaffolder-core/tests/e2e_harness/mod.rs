@@ -39,11 +39,21 @@ struct ConfigWorkerEntry {
     config: Option<serde_json::Value>,
 }
 
+#[derive(Deserialize, Default)]
+struct WorkerScripts {
+    #[serde(default)]
+    install: Option<String>,
+    #[serde(default)]
+    start: Option<String>,
+}
+
 #[derive(Deserialize)]
 struct WorkerManifest {
     name: String,
     #[serde(default)]
     runtime: Option<WorkerRuntime>,
+    #[serde(default)]
+    scripts: Option<WorkerScripts>,
 }
 
 #[derive(Deserialize)]
@@ -143,15 +153,8 @@ impl Scenario {
 
         for rel_dir in &worker_dirs {
             let abs_dir = self.project_dir.path().join(rel_dir);
-            let manifest_path = abs_dir.join("iii.worker.yaml");
-            if !manifest_path.exists() {
-                continue;
-            }
-
-            let content = std::fs::read_to_string(&manifest_path)
-                .unwrap_or_else(|e| panic!("read {}: {e}", manifest_path.display()));
-            let wm: WorkerManifest = serde_yaml::from_str(&content)
-                .unwrap_or_else(|e| panic!("parse {}: {e}", manifest_path.display()));
+            let wm = Self::read_worker_manifest(&abs_dir);
+            let Some(wm) = wm else { continue };
 
             let lang = wm
                 .runtime
@@ -159,32 +162,38 @@ impl Scenario {
                 .and_then(|r| r.language.as_deref())
                 .unwrap_or("typescript");
 
-            let entry = wm.runtime.as_ref().and_then(|r| r.entry.as_deref());
-
             self.install_worker(lang, &abs_dir).await;
-            self.spawn_worker(&wm.name, lang, entry, &abs_dir).await;
+            self.spawn_worker(&wm, &abs_dir).await;
         }
     }
 
     /// Start a single named worker by its directory under `workers/`.
     pub async fn start_worker(&mut self, worker_rel_dir: &str) {
         let abs_dir = self.project_dir.path().join(worker_rel_dir);
-        let manifest_path = abs_dir.join("iii.worker.yaml");
-
-        let content = std::fs::read_to_string(&manifest_path)
-            .unwrap_or_else(|e| panic!("read {}: {e}", manifest_path.display()));
-        let wm: WorkerManifest = serde_yaml::from_str(&content)
-            .unwrap_or_else(|e| panic!("parse {}: {e}", manifest_path.display()));
+        let wm = Self::read_worker_manifest(&abs_dir)
+            .unwrap_or_else(|| panic!("no iii.worker.yaml in {}", abs_dir.display()));
 
         let lang = wm
             .runtime
             .as_ref()
             .and_then(|r| r.language.as_deref())
             .unwrap_or("typescript");
-        let entry = wm.runtime.as_ref().and_then(|r| r.entry.as_deref());
 
         self.install_worker(lang, &abs_dir).await;
-        self.spawn_worker(&wm.name, lang, entry, &abs_dir).await;
+        self.spawn_worker(&wm, &abs_dir).await;
+    }
+
+    fn read_worker_manifest(dir: &Path) -> Option<WorkerManifest> {
+        let manifest_path = dir.join("iii.worker.yaml");
+        if !manifest_path.exists() {
+            return None;
+        }
+        let content = std::fs::read_to_string(&manifest_path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", manifest_path.display()));
+        Some(
+            serde_yaml::from_str(&content)
+                .unwrap_or_else(|e| panic!("parse {}: {e}", manifest_path.display())),
+        )
     }
 
     async fn install_worker(&self, lang: &str, dir: &Path) {
@@ -203,9 +212,10 @@ impl Scenario {
                     ".venv/bin/pip"
                 };
                 if let Some(sdk_path) = local_python_sdk() {
-                    run_cmd(pip, &["install", "-q", sdk_path.to_str().unwrap()], dir).await;
+                    install_python_deps_with_local_sdk(pip, dir, &sdk_path).await;
+                } else {
+                    run_cmd(pip, &["install", "-q", "-r", "requirements.txt"], dir).await;
                 }
-                run_cmd(pip, &["install", "-q", "-r", "requirements.txt"], dir).await;
             }
             "rust" => {
                 if let Some(sdk_path) = local_rust_sdk() {
@@ -216,39 +226,38 @@ impl Scenario {
         }
     }
 
-    async fn spawn_worker(
-        &mut self,
-        name: &str,
-        lang: &str,
-        entry: Option<&str>,
-        dir: &Path,
-    ) {
+    async fn spawn_worker(&mut self, wm: &WorkerManifest, dir: &Path) {
         let engine_url = format!("ws://localhost:{}", self.engine_port);
+        let lang = wm
+            .runtime
+            .as_ref()
+            .and_then(|r| r.language.as_deref())
+            .unwrap_or("typescript");
 
-        let mut cmd = match lang {
-            "typescript" | "javascript" => {
-                let entry = entry.unwrap_or("src/index.ts");
-                let mut c = Command::new("npx");
-                c.args(["tsx", entry]);
-                c
-            }
-            "python" => {
-                let entry = entry.unwrap_or("main.py");
-                let python = if cfg!(windows) {
-                    ".venv\\Scripts\\python"
-                } else {
-                    ".venv/bin/python"
-                };
-                let mut c = Command::new(python);
-                c.arg(entry);
-                c
-            }
-            "rust" => {
-                let mut c = Command::new("cargo");
-                c.args(["run", "--quiet"]);
-                c
-            }
-            other => panic!("unsupported language for start: {other}"),
+        let start_script = wm
+            .scripts
+            .as_ref()
+            .and_then(|s| s.start.as_deref())
+            .unwrap_or_else(|| panic!("worker '{}' has no scripts.start", wm.name));
+
+        let parts: Vec<&str> = start_script.split_whitespace().collect();
+        let (program, args) = parts
+            .split_first()
+            .unwrap_or_else(|| panic!("empty scripts.start for '{}'", wm.name));
+
+        let mut cmd = if lang == "python" && *program == "python" {
+            let venv_python = if cfg!(windows) {
+                ".venv\\Scripts\\python"
+            } else {
+                ".venv/bin/python"
+            };
+            let mut c = Command::new(venv_python);
+            c.args(args);
+            c
+        } else {
+            let mut c = Command::new(program);
+            c.args(args);
+            c
         };
 
         cmd.current_dir(dir)
@@ -260,8 +269,12 @@ impl Scenario {
             .spawn()
             .unwrap_or_else(|e| panic!("failed to spawn worker in {}: {e}", dir.display()));
 
-        eprintln!("[e2e] spawned worker '{}' (pid={})", name, child.id().unwrap_or(0));
-        self.children.push((child, name.to_string()));
+        eprintln!(
+            "[e2e] spawned worker '{}' via `{start_script}` (pid={})",
+            wm.name,
+            child.id().unwrap_or(0)
+        );
+        self.children.push((child, wm.name.clone()));
     }
 
     // -- HTTP -----------------------------------------------------------
@@ -608,6 +621,32 @@ fn patch_rust_sdk(worker_dir: &Path, sdk_path: &Path) {
     ));
     std::fs::write(&cargo_path, content).unwrap();
     eprintln!("[e2e] patched {} -> local SDK", cargo_path.display());
+}
+
+/// Install Python deps from requirements.txt, substituting iii-sdk with a local path.
+/// Dev versions (e.g. 0.11.0.dev5) don't satisfy `>=0.11.0` per PEP 440, so we
+/// install everything else from requirements.txt then install the local SDK separately.
+async fn install_python_deps_with_local_sdk(pip: &str, dir: &Path, sdk_path: &Path) {
+    let req_path = dir.join("requirements.txt");
+    let content = std::fs::read_to_string(&req_path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", req_path.display()));
+
+    let filtered: Vec<&str> = content
+        .lines()
+        .filter(|line| {
+            let trimmed = line.trim();
+            !trimmed.is_empty() && !trimmed.starts_with('#') && !trimmed.starts_with("iii-sdk")
+        })
+        .collect();
+
+    if !filtered.is_empty() {
+        let filtered_path = dir.join("requirements-filtered.txt");
+        std::fs::write(&filtered_path, filtered.join("\n")).unwrap();
+        run_cmd(pip, &["install", "-q", "-r", "requirements-filtered.txt"], dir).await;
+    }
+
+    run_cmd(pip, &["install", "-q", sdk_path.to_str().unwrap()], dir).await;
+    eprintln!("[e2e] installed local Python SDK from {}", sdk_path.display());
 }
 
 async fn run_cmd(program: &str, args: &[&str], dir: &Path) {
