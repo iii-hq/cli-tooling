@@ -42,26 +42,18 @@ pub fn parse_version(version_str: &str) -> Result<Version> {
     Version::parse(cleaned).map_err(|e| anyhow::anyhow!("Invalid version '{}': {}", version_str, e))
 }
 
-/// Check that the installed iii engine version meets the template's minimum requirement.
-/// Returns Ok(version_string) on success, Err with a user-facing message on failure.
-pub fn check_iii_engine_version(min_version: &str) -> std::result::Result<String, String> {
-    let tool = crate::runtime::tool::iii_tool();
-
-    let raw_version = tool
-        .get_version()
-        .ok_or_else(|| {
-            format!(
-                "This template requires iii >= {}, but iii is not installed or not in PATH.\n\
-                 Install it from https://iii.dev/docs or run: curl -fsSL https://install.iii.dev/latest.sh | sh",
-                min_version
-            )
-        })?;
-
-    let installed = parse_version(&raw_version).map_err(|_| {
+/// Validate that a raw version string meets the minimum version requirement.
+/// `installed_raw` is the output from `iii --version` (e.g. "iii 0.11.0", "v0.11.0", "0.11.0").
+/// Returns Ok(parsed_version_string) or Err with a user-facing message.
+pub fn validate_iii_version(
+    installed_raw: &str,
+    min_version: &str,
+) -> std::result::Result<String, String> {
+    let installed = parse_version(installed_raw).map_err(|_| {
         format!(
             "Could not parse iii version from: {}\n\
              Please update iii: iii update",
-            raw_version
+            installed_raw
         )
     })?;
 
@@ -78,6 +70,24 @@ pub fn check_iii_engine_version(min_version: &str) -> std::result::Result<String
     } else {
         Ok(installed.to_string())
     }
+}
+
+/// Check that the installed iii engine version meets the template's minimum requirement.
+/// Returns Ok(version_string) on success, Err with a user-facing message on failure.
+pub fn check_iii_engine_version(min_version: &str) -> std::result::Result<String, String> {
+    let tool = crate::runtime::tool::iii_tool();
+
+    let raw_version = tool
+        .get_version()
+        .ok_or_else(|| {
+            format!(
+                "This template requires iii >= {}, but iii is not installed or not in PATH.\n\
+                 Install it from https://iii.dev/docs or run: curl -fsSL https://install.iii.dev/latest.sh | sh",
+                min_version
+            )
+        })?;
+
+    validate_iii_version(&raw_version, min_version)
 }
 
 #[cfg(test)]
@@ -143,5 +153,42 @@ mod tests {
     #[test]
     fn test_parse_version_invalid() {
         assert!(parse_version("not-a-version").is_err());
+    }
+
+    #[test]
+    fn test_validate_iii_version_too_old() {
+        let result = validate_iii_version("iii 0.10.0", "0.11.0");
+        assert!(result.is_err());
+        let msg = result.unwrap_err();
+        assert!(msg.contains("iii >= 0.11.0"));
+        assert!(msg.contains("0.10.0"));
+        assert!(msg.contains("iii update"));
+    }
+
+    #[test]
+    fn test_validate_iii_version_exact_match() {
+        let result = validate_iii_version("iii 0.11.0", "0.11.0");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "0.11.0");
+    }
+
+    #[test]
+    fn test_validate_iii_version_newer() {
+        let result = validate_iii_version("iii 0.12.0", "0.11.0");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "0.12.0");
+    }
+
+    #[test]
+    fn test_validate_iii_version_with_v_prefix() {
+        let result = validate_iii_version("v0.11.0", "0.11.0");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_iii_version_unparseable() {
+        let result = validate_iii_version("garbage", "0.11.0");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Could not parse"));
     }
 }
