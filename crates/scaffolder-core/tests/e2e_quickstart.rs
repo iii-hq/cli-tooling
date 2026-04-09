@@ -27,8 +27,12 @@ async fn quickstart_orchestrate_returns_all_workers() {
     scenario.read_http_port();
     scenario.start_engine().await;
     scenario.start_workers().await;
-    scenario.wait_for_http(Duration::from_secs(120)).await;
 
+    eprintln!("[test] waiting for HTTP readiness...");
+    scenario.wait_for_http(Duration::from_secs(120)).await;
+    eprintln!("[test] HTTP ready");
+
+    eprintln!("[test] POST /orchestrate");
     let resp = scenario
         .http_post(
             "/orchestrate",
@@ -36,21 +40,25 @@ async fn quickstart_orchestrate_returns_all_workers() {
         )
         .await;
 
-    assert_eq!(resp.status(), 200, "orchestrate should return 200");
-
+    let status = resp.status();
     let body: serde_json::Value = resp.json().await.unwrap();
-    assert_eq!(body["client"], "ok");
+    eprintln!("[test] response status={status}, body={}", serde_json::to_string_pretty(&body).unwrap());
+
+    assert_eq!(status, 200, "orchestrate should return 200");
+    assert_eq!(body["client"], "ok", "body: {body}");
     assert!(
-        body["errors"].as_array().unwrap().is_empty(),
+        body["errors"].as_array().map_or(true, |a| a.is_empty()),
         "expected no errors, got: {}",
         body["errors"]
     );
-    assert_eq!(body["computeWorker"]["result"], 84);
-    assert_eq!(body["computeWorker"]["input"], 42);
-    assert_eq!(body["dataWorker"]["source"], "data-worker");
+    assert_eq!(body["computeWorker"]["result"], 84, "computeWorker: {}", body["computeWorker"]);
+    assert_eq!(body["computeWorker"]["input"], 42, "computeWorker: {}", body["computeWorker"]);
+    assert_eq!(body["dataWorker"]["source"], "data-worker", "dataWorker: {}", body["dataWorker"]);
     assert_eq!(
         body["externalWorker"]["body"]["message"],
-        "Payment recorded"
+        "Payment recorded",
+        "externalWorker: {}",
+        body["externalWorker"]
     );
 
     scenario.shutdown().await;
@@ -67,13 +75,20 @@ async fn quickstart_health_endpoint_returns_ok() {
     scenario.start_engine().await;
 
     scenario.start_worker("workers/client").await;
+
+    eprintln!("[test] waiting for HTTP readiness...");
     scenario.wait_for_http(Duration::from_secs(60)).await;
+    eprintln!("[test] HTTP ready");
 
+    eprintln!("[test] GET /health");
     let resp = scenario.http_get("/health").await;
-    assert_eq!(resp.status(), 200);
 
+    let status = resp.status();
     let body: serde_json::Value = resp.json().await.unwrap();
-    assert_eq!(body["healthy"], true);
+    eprintln!("[test] response status={status}, body={}", serde_json::to_string_pretty(&body).unwrap());
+
+    assert_eq!(status, 200, "health should return 200");
+    assert_eq!(body["healthy"], true, "body: {body}");
 
     scenario.shutdown().await;
 }
