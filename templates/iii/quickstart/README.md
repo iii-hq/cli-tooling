@@ -1,115 +1,73 @@
-# Welcome to iii
+# Cross-Language Math
 
-This quickstart demonstrates how iii transforms all backend functionality
-into workers that can operate, scale, and error independently of each other.
+Two workers — one Python, one TypeScript — demonstrating cross-language function calls via the iii engine.
 
-The `workers/` folder contains a TypeScript **client** and **payment-worker**,
-a Rust **compute-worker**, and a Python **data-worker**. Each runs in an
-isolated microVM sandbox via `iii worker dev`.
+## What's Inside
 
-Check `workers/client/src/worker.ts` to see how the orchestration works.
-
-## Prerequisites
-
-- **iii** installed (https://iii.dev/docs)
-- **macOS Apple Silicon** or **Linux with KVM** (required for `iii worker dev`)
-
-> **Windows users:** Run inside WSL 2 with KVM support enabled.
+| Worker | Language | Function | Does |
+|--------|----------|----------|------|
+| `math-worker` | Python | `math::add` | Returns `{ c: a + b }` |
+| `caller-worker` | TypeScript | `math::add_two_numbers` | Calls `math::add` and returns the result |
 
 ## Quick Start
 
-### 1. Add pre-built workers
-
-Each worker only needs to be added once and then every other worker can use it.
-
-```bash
-iii worker add iii-http   # client: HTTP endpoints (/health, /orchestrate)
-iii worker add iii-state  # client + data-worker: shared key-value state
-iii worker add iii-cron   # client: scheduled health check
-```
-
-### 2. Start the engine
+### 1. Start the engine
 
 ```bash
 iii
 ```
 
-### 3. Start the custom workers in a separate terminal
+### 2. Start the workers (separate terminals)
 
 ```bash
-iii worker dev ./workers/client
+cd workers/math-worker && iii worker dev
 ```
 
 ```bash
-iii worker dev ./workers/payment-worker
+cd workers/caller-worker && iii worker dev
 ```
+
+### 3. Call functions from the CLI
+
+Call the Python worker directly:
 
 ```bash
-iii worker dev ./workers/data-worker
+iii trigger --function-id='math::add' --payload='{"a": 2, "b": 3}'
 ```
-
-```bash
-iii worker dev ./workers/compute-worker
-```
-
-Only the client worker is required for this demo. The application still works
-with whichever other workers are running and reports errors for any that are missing.
-
-### 4. Try it out
-
-```bash
-curl -X POST http://localhost:3111/orchestrate \
-  -H "Content-Type: application/json" \
-  -d '{"data":{"message":"hello from client"},"n":42}' | jq
-```
-
-With all workers running the output looks like:
 
 ```json
-{
-  "client": "ok",
-  "computeWorker": { "input": 42, "result": 84, "source": "compute-worker" },
-  "dataWorker": {
-    "keys": ["message"],
-    "source": "data-worker",
-    "transformed": { "message": "hello from client" }
-  },
-  "errors": [],
-  "externalWorker": {
-    "body": { "message": "Payment recorded" },
-    "source": "payment-worker",
-    "status": 200
-  }
-}
+{ "c": 5 }
 ```
 
-### 5. Try the iii Console
+Call the TypeScript worker (which calls Python under the hood):
 
 ```bash
-iii console
+iii trigger --function-id='math::add_two_numbers' --payload='{"a": 10, "b": 20}'
 ```
 
-Open http://localhost:3113/ to see logs, traces, and runtime state.
+```json
+{ "c": 30 }
+```
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      iii Engine                             │
-│           (port 49134 (engine), 3111 (http))                │
-└──────────┬──────────┬──────────┬──────────┬─────────────────┘
-           │          │          │          │
-    ┌──────┴───┐ ┌────┴────┐ ┌───┴───┐ ┌────┴─────┐
-    │  Client  │ │ Compute │ │ Data  │ │ Payment  │
-    │   (TS)   │ │  (Rust) │ │  (Py) │ │   (TS)   │
-    └──────────┘ └─────────┘ └───────┘ └──────────┘
+┌──────────────┐          ┌──────────────────┐
+│  iii trigger  │◀────────▶│    iii engine     │
+│  (CLI)        │   WS     │   :49134          │
+└──────────────┘          └──────┬───────┬────┘
+                                 │       │
+                          WS     │       │  WS
+                                 ▼       ▼
+                        ┌────────────┐  ┌──────────────┐
+                        │math-worker │  │caller-worker │
+                        │(Python)    │  │(TypeScript)  │
+                        │math::add   │  │math::add_two │
+                        │            │  │  _numbers    │
+                        └────────────┘  └──────────────┘
 ```
-
-Workers communicate via the engine regardless of language. Functions can be
-triggered across processes, languages, and application boundaries.
 
 ## Next Steps
 
-- Explore `workers/client/src/worker.ts` to understand the orchestration
-- Edit `config.yaml` to customize engine workers
-- Visit https://iii.dev/docs/concepts to learn more about Workers, Triggers, and Functions
+- Open `workers/math-worker/math_worker.py` and `workers/caller-worker/src/worker.ts` to see how functions are registered and called across languages.
+- Read the [iii docs](https://iii.dev/docs) for triggers, queues, state, and more.

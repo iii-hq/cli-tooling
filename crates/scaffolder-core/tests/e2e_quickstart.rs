@@ -1,20 +1,18 @@
-//! E2E test for the iii quickstart template.
+//! E2E test for the quickstart template.
 //!
-//! Scaffolds the quickstart once, starts the engine and all 4 workers, then
-//! hits the `/health` and `/orchestrate` endpoints.
+//! Scaffolds the template once, starts the engine and both workers, then
+//! uses `iii trigger` to call functions directly from the CLI.
 //!
 //! Run with:
 //!   cargo test --test e2e_quickstart -- --ignored --nocapture
 //!
 //! Requires:
 //!   - `iii` binary on PATH (or III_BIN env var)
-//!   - Node.js + npm (for client and payment-worker)
-//!   - Python 3 (for data-worker)
-//!   - Rust/Cargo (for compute-worker)
+//!   - Node.js + npm (for caller-worker)
+//!   - Python 3 (for math-worker)
 
 mod e2e_harness;
 
-use serde_json::json;
 use std::time::Duration;
 
 #[tokio::test]
@@ -24,95 +22,43 @@ async fn quickstart() {
         .build()
         .await;
 
-    scenario.run_iii(&["worker", "add", "iii-http"]).await;
-    scenario.run_iii(&["worker", "add", "iii-state"]).await;
-    scenario.run_iii(&["worker", "add", "iii-cron"]).await;
-
-    scenario.read_http_port();
     scenario.start_engine().await;
     scenario.start_workers().await;
 
-    eprintln!("[test] waiting for HTTP readiness...");
-    scenario.wait_for_http(Duration::from_secs(120)).await;
-    eprintln!("[test] HTTP ready");
+    eprintln!("[test] waiting for workers to register...");
+    tokio::time::sleep(Duration::from_secs(10)).await;
 
-    // 1. Health endpoint (only needs the client worker)
-    eprintln!("[test] GET /health");
-    let resp = scenario.http_get("/health").await;
+    // 1. Call the Python worker directly
+    eprintln!("[test] iii trigger math::add");
+    let stdout = scenario
+        .run_iii_with_output(&[
+            "trigger",
+            "--function-id=math::add",
+            "--payload={\"a\": 2, \"b\": 3}",
+        ])
+        .await;
 
-    let status = resp.status();
-    let body: serde_json::Value = resp.json().await.unwrap();
-    eprintln!(
-        "[test] response status={status}, body={}",
-        serde_json::to_string_pretty(&body).unwrap()
-    );
+    eprintln!("[test] stdout: {stdout}");
+    let result: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("failed to parse trigger output as JSON: {e}\nraw: {stdout}"));
+    assert_eq!(result["c"], 5, "math::add should return a + b: {result}");
 
-    assert_eq!(status, 200, "health should return 200");
-    assert_eq!(body["healthy"], true, "body: {body}");
+    // 2. Call the Node worker, which internally calls the Python worker
+    eprintln!("[test] iii trigger math::add_two_numbers");
+    let stdout = scenario
+        .run_iii_with_output(&[
+            "trigger",
+            "--function-id=math::add_two_numbers",
+            "--payload={\"a\": 10, \"b\": 20}",
+        ])
+        .await;
 
-    // 2. Orchestrate endpoint (calls all 4 workers)
-    //    Retry until all workers have registered — the Rust worker needs
-    //    cargo compile time on first run.
-    eprintln!("[test] POST /orchestrate (with retry for worker readiness)");
-    let deadline = std::time::Instant::now() + Duration::from_secs(180);
-    let body: serde_json::Value = loop {
-        let resp = scenario
-            .http_post(
-                "/orchestrate",
-                json!({"data": {"message": "hello from e2e"}, "n": 42}),
-            )
-            .await;
-
-        let status = resp.status();
-        let b: serde_json::Value = resp.json().await.unwrap();
-
-        let has_errors = b["errors"]
-            .as_array()
-            .map_or(false, |a| !a.is_empty());
-
-        if status == 200 && !has_errors {
-            eprintln!(
-                "[test] response status={status}, body={}",
-                serde_json::to_string_pretty(&b).unwrap()
-            );
-            break b;
-        }
-
-        if std::time::Instant::now() > deadline {
-            eprintln!(
-                "[test] response status={status}, body={}",
-                serde_json::to_string_pretty(&b).unwrap()
-            );
-            panic!(
-                "orchestrate still has errors after timeout: {}",
-                b["errors"]
-            );
-        }
-
-        eprintln!("[test] workers not all ready, retrying in 3s...");
-        tokio::time::sleep(Duration::from_secs(3)).await;
-    };
-
-    assert_eq!(body["client"], "ok", "body: {body}");
+    eprintln!("[test] stdout: {stdout}");
+    let result: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("failed to parse trigger output as JSON: {e}\nraw: {stdout}"));
     assert_eq!(
-        body["computeWorker"]["result"], 84,
-        "computeWorker: {}",
-        body["computeWorker"]
-    );
-    assert_eq!(
-        body["computeWorker"]["input"], 42,
-        "computeWorker: {}",
-        body["computeWorker"]
-    );
-    assert_eq!(
-        body["dataWorker"]["source"], "data-worker",
-        "dataWorker: {}",
-        body["dataWorker"]
-    );
-    assert_eq!(
-        body["externalWorker"]["body"]["message"], "Payment recorded",
-        "externalWorker: {}",
-        body["externalWorker"]
+        result["c"], 30,
+        "math::add_two_numbers should return a + b via cross-worker call: {result}"
     );
 
     scenario.shutdown().await;
