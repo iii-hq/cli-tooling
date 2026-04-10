@@ -2,6 +2,8 @@
 
 Two workers — one Python, one TypeScript — demonstrating cross-language function calls via the iii engine.
 
+For a detailed walkthrough follow the [Quickstart tutorial](https://iii.dev/docs/quickstart).
+
 ## What's Inside
 
 | Worker          | Language   | Function                | Does                                     |
@@ -51,7 +53,7 @@ iii trigger --function-id='math::add_two_numbers' --payload='{"a": 10, "b": 20}'
 
 ## Architecture
 
-```
+```text
 ┌──────────────┐          ┌──────────────────┐
 │  iii trigger  │◀────────▶│    iii engine     │
 │  (CLI)        │   WS     │   :49134          │
