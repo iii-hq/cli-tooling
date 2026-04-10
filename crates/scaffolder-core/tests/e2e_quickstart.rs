@@ -1,7 +1,7 @@
 //! E2E test for the iii quickstart template.
 //!
-//! Scaffolds the quickstart, starts the engine and all 4 workers, then
-//! hits the `/orchestrate` endpoint and verifies the aggregated response.
+//! Scaffolds the quickstart once, starts the engine and all 4 workers, then
+//! hits the `/health` and `/orchestrate` endpoints.
 //!
 //! Run with:
 //!   cargo test --test e2e_quickstart -- --ignored --nocapture
@@ -19,7 +19,7 @@ use std::time::Duration;
 
 #[tokio::test]
 #[ignore]
-async fn quickstart_orchestrate_returns_all_workers() {
+async fn quickstart() {
     let mut scenario = e2e_harness::Scenario::builder("quickstart", "iii")
         .build()
         .await;
@@ -36,13 +36,9 @@ async fn quickstart_orchestrate_returns_all_workers() {
     scenario.wait_for_http(Duration::from_secs(120)).await;
     eprintln!("[test] HTTP ready");
 
-    eprintln!("[test] POST /orchestrate");
-    let resp = scenario
-        .http_post(
-            "/orchestrate",
-            json!({"data": {"message": "hello from e2e"}, "n": 42}),
-        )
-        .await;
+    // 1. Health endpoint (only needs the client worker)
+    eprintln!("[test] GET /health");
+    let resp = scenario.http_get("/health").await;
 
     let status = resp.status();
     let body: serde_json::Value = resp.json().await.unwrap();
@@ -51,13 +47,53 @@ async fn quickstart_orchestrate_returns_all_workers() {
         serde_json::to_string_pretty(&body).unwrap()
     );
 
-    assert_eq!(status, 200, "orchestrate should return 200");
+    assert_eq!(status, 200, "health should return 200");
+    assert_eq!(body["healthy"], true, "body: {body}");
+
+    // 2. Orchestrate endpoint (calls all 4 workers)
+    //    Retry until all workers have registered — the Rust worker needs
+    //    cargo compile time on first run.
+    eprintln!("[test] POST /orchestrate (with retry for worker readiness)");
+    let deadline = std::time::Instant::now() + Duration::from_secs(180);
+    let body: serde_json::Value = loop {
+        let resp = scenario
+            .http_post(
+                "/orchestrate",
+                json!({"data": {"message": "hello from e2e"}, "n": 42}),
+            )
+            .await;
+
+        let status = resp.status();
+        let b: serde_json::Value = resp.json().await.unwrap();
+
+        let has_errors = b["errors"]
+            .as_array()
+            .map_or(false, |a| !a.is_empty());
+
+        if status == 200 && !has_errors {
+            eprintln!(
+                "[test] response status={status}, body={}",
+                serde_json::to_string_pretty(&b).unwrap()
+            );
+            break b;
+        }
+
+        if std::time::Instant::now() > deadline {
+            eprintln!(
+                "[test] response status={status}, body={}",
+                serde_json::to_string_pretty(&b).unwrap()
+            );
+            panic!(
+                "orchestrate still has errors after timeout: {}",
+                b["errors"]
+            );
+        }
+
+        eprintln!("[test] workers not all ready, retrying in 3s...");
+        tokio::time::sleep(Duration::from_secs(3)).await;
+    };
+
     assert_eq!(body["client"], "ok", "body: {body}");
-    assert!(
-        body["errors"].as_array().map_or(true, |a| a.is_empty()),
-        "expected no errors, got: {}",
-        body["errors"]
-    );
     assert_eq!(
         body["computeWorker"]["result"], 84,
         "computeWorker: {}",
@@ -78,42 +114,6 @@ async fn quickstart_orchestrate_returns_all_workers() {
         "externalWorker: {}",
         body["externalWorker"]
     );
-
-    scenario.shutdown().await;
-}
-
-#[tokio::test]
-#[ignore]
-async fn quickstart_health_endpoint_returns_ok() {
-    let mut scenario = e2e_harness::Scenario::builder("quickstart", "iii")
-        .build()
-        .await;
-
-    scenario.run_iii(&["worker", "add", "iii-http"]).await;
-    scenario.run_iii(&["worker", "add", "iii-state"]).await;
-    scenario.run_iii(&["worker", "add", "iii-cron"]).await;
-
-    scenario.read_http_port();
-    scenario.start_engine().await;
-
-    scenario.start_worker("workers/client").await;
-
-    eprintln!("[test] waiting for HTTP readiness...");
-    scenario.wait_for_http(Duration::from_secs(60)).await;
-    eprintln!("[test] HTTP ready");
-
-    eprintln!("[test] GET /health");
-    let resp = scenario.http_get("/health").await;
-
-    let status = resp.status();
-    let body: serde_json::Value = resp.json().await.unwrap();
-    eprintln!(
-        "[test] response status={status}, body={}",
-        serde_json::to_string_pretty(&body).unwrap()
-    );
-
-    assert_eq!(status, 200, "health should return 200");
-    assert_eq!(body["healthy"], true, "body: {body}");
 
     scenario.shutdown().await;
 }
