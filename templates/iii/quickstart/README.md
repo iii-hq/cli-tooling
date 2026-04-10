@@ -70,4 +70,4 @@ iii trigger --function-id='math::add_two_numbers' --payload='{"a": 10, "b": 20}'
 ## Next Steps
 
 - Open `workers/math-worker/math_worker.py` and `workers/caller-worker/src/worker.ts` to see how functions are registered and called across languages.
-- Read the [iii docs](https://iii.dev/docs) for triggers, queues, state, and more.
+- Read the [iii docs](https://iii.dev/docs) to learn how to use triggers, queues, state, and more.
