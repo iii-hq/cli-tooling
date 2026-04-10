@@ -1,7 +1,6 @@
 # Data Worker - Data validation and transformation
 # Demonstrates: register_function with Pydantic validation
 
-import asyncio
 import os
 from iii import register_worker, InitOptions, Logger
 from pydantic import BaseModel, ValidationError
@@ -36,9 +35,3 @@ def transform_handler(payload: dict) -> dict:
 iii.register_function("data-worker::transform", transform_handler)
 
 print("Data worker started - listening for calls")
-
-loop = asyncio.new_event_loop()
-try:
-    loop.run_forever()
-except KeyboardInterrupt:
-    pass

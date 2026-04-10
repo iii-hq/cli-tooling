@@ -1,4 +1,3 @@
-import asyncio
 import os
 from iii import register_worker, InitOptions, Logger
 
@@ -19,9 +18,3 @@ def add_handler(payload: dict) -> dict:
 iii.register_function("math::add", add_handler)
 
 print("Math worker started - listening for calls")
-
-loop = asyncio.new_event_loop()
-try:
-    loop.run_forever()
-except KeyboardInterrupt:
-    pass
