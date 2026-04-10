@@ -22,11 +22,11 @@ iii
 ### 2. Start the workers (separate terminals)
 
 ```bash
-iii worker dev ./workers/math-worker
+iii worker add ./workers/math-worker
 ```
 
 ```bash
-iii worker dev ./workers/caller-worker
+iii worker add ./workers/caller-worker
 ```
 
 ### 3. Call functions from the CLI
