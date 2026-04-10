@@ -391,6 +391,27 @@ impl Scenario {
             .collect()
     }
 
+    /// Check if each child is still running and print any available stderr.
+    pub async fn dump_worker_status(&mut self) {
+        for (child, label) in &mut self.children {
+            let pid = child.id().unwrap_or(0);
+            let exited = child.try_wait().unwrap();
+            if let Some(status) = exited {
+                let stderr = read_child_stderr(child).await;
+                let stdout = read_child_stdout(child).await;
+                eprintln!("[e2e] '{label}' (pid={pid}) has EXITED with {status}");
+                if !stdout.is_empty() {
+                    eprintln!("[e2e]   stdout: {stdout}");
+                }
+                if !stderr.is_empty() {
+                    eprintln!("[e2e]   stderr: {stderr}");
+                }
+            } else {
+                eprintln!("[e2e] '{label}' (pid={pid}) is still running");
+            }
+        }
+    }
+
     /// Gracefully shut down all child processes: SIGTERM, wait up to 5s, then SIGKILL.
     pub async fn shutdown(&mut self) {
         for (child, label) in &mut self.children {
@@ -694,7 +715,12 @@ async fn install_python_deps_with_local_sdk(pip: &str, dir: &Path, sdk_path: &Pa
         .await;
     }
 
-    run_cmd(pip, &["install", "-q", sdk_path.to_str().unwrap()], dir).await;
+    run_cmd(
+        pip,
+        &["install", "-q", "--no-cache-dir", "--force-reinstall", sdk_path.to_str().unwrap()],
+        dir,
+    )
+    .await;
     eprintln!(
         "[e2e] installed local Python SDK from {}",
         sdk_path.display()

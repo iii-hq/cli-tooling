@@ -26,7 +26,7 @@ async fn cross_language_math() {
     scenario.start_workers().await;
 
     eprintln!("[test] waiting for workers to register...");
-    tokio::time::sleep(Duration::from_secs(8)).await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
 
     // 1. Call the Python worker directly
     eprintln!("[test] iii trigger math::add");
