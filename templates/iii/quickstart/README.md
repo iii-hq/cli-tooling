@@ -4,9 +4,9 @@ Two workers — one Python, one TypeScript — demonstrating cross-language func
 
 ## What's Inside
 
-| Worker | Language | Function | Does |
-|--------|----------|----------|------|
-| `math-worker` | Python | `math::add` | Returns `{ c: a + b }` |
+| Worker          | Language   | Function                | Does                                     |
+| --------------- | ---------- | ----------------------- | ---------------------------------------- |
+| `math-worker`   | Python     | `math::add`             | Returns `{ c: a + b }`                   |
 | `caller-worker` | TypeScript | `math::add_two_numbers` | Calls `math::add` and returns the result |
 
 ## Quick Start
@@ -20,11 +20,11 @@ iii
 ### 2. Start the workers (separate terminals)
 
 ```bash
-cd workers/math-worker && iii worker dev
+iii worker dev ./workers/math-worker
 ```
 
 ```bash
-cd workers/caller-worker && iii worker dev
+iii worker dev ./workers/caller-worker
 ```
 
 ### 3. Call functions from the CLI
