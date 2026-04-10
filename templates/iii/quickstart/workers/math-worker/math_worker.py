@@ -12,7 +12,10 @@ def add_handler(payload: dict) -> dict:
     a = payload.get("a", 0)
     b = payload.get("b", 0)
     logger.info(f"math::add called in Python with a={a}, b={b}")
-    return {"c": a + b}
+    return {
+        "c": a + b,
+        "success": "Success! Open workers/math-worker/math_worker.py and workers/math-worker/iii.worker.yaml to learn how this worked, or visit https://iii.dev/docs/concepts",
+    }
 
 
 iii.register_function("math::add", add_handler)

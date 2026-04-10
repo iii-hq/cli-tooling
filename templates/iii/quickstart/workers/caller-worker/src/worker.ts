@@ -13,7 +13,11 @@ iii.registerFunction(
       payload,
     });
 
-    return result;
+    return {
+      ...result,
+      success:
+        'Success! Open workers/caller-worker/src/worker.ts and workers/caller-worker/iii.worker.yaml to learn how this worked, or visit https://iii.dev/docs/concepts',
+    };
   },
 );
 
