@@ -24,11 +24,6 @@ iii.registerFunction(
 // --- Uncomment after: iii worker add iii-http ---
 // iii.registerTrigger({
 //   type: 'http',
-//   function_id: 'math::add',
-//   config: { api_path: '/math/add', http_method: 'POST' },
-// });
-// iii.registerTrigger({
-//   type: 'http',
 //   function_id: 'math::add_two_numbers',
 //   config: { api_path: '/math/add-two-numbers', http_method: 'POST' },
 // });
