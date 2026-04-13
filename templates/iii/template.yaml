@@ -1,7 +1,7 @@
 # Root template manifest for iii - lists available templates by folder name
 templates:
   - quickstart
-  - multi-worker-orchestration
+  # - multi-worker-orchestration
   # - quickstart-ai-agents
   # - starter
 

@@ -21,13 +21,10 @@ For a detailed walkthrough follow the [Quickstart tutorial](https://iii.dev/docs
 iii
 ```
 
-### 2. Start the workers (separate terminals)
+### 2. Start the workers
 
 ```bash
 iii worker add ./workers/math-worker
-```
-
-```bash
 iii worker add ./workers/caller-worker
 ```
 
