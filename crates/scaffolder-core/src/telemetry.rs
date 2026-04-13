@@ -263,12 +263,13 @@ pub async fn write_project_ini(
     project_dir: &Path,
     project_id: &str,
     project_name: &str,
+    template: &str,
 ) -> Result<()> {
     let dir = project_dir.join(".iii");
     fs::create_dir_all(&dir)
         .await
         .context("create .iii directory")?;
-    let body = format!("[project]\nproject_id={project_id}\nproject_name={project_name}\n");
+    let body = format!("[project]\nproject_id={project_id}\nproject_name={project_name}\nsource={template}\n");
     fs::write(dir.join("project.ini"), body)
         .await
         .context("write project.ini")?;
@@ -339,9 +340,37 @@ mod tests {
 
     #[test]
     fn project_ini_body_format() {
-        let s = format!("[project]\nproject_id={}\nproject_name={}\n", "abc", "my-app");
+        let s = format!(
+            "[project]\nproject_id={}\nproject_name={}\nsource={}\n",
+            "abc", "my-app", "quickstart"
+        );
         assert!(s.contains("project_id=abc"));
         assert!(s.contains("project_name=my-app"));
+        assert!(s.contains("source=quickstart"));
+    }
+
+    #[tokio::test]
+    async fn write_project_ini_includes_source() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_project_ini(tmp.path(), "proj-1", "my-proj", "quickstart")
+            .await
+            .unwrap();
+        let contents =
+            std::fs::read_to_string(tmp.path().join(".iii").join("project.ini")).unwrap();
+        assert!(contents.contains("project_id=proj-1"));
+        assert!(contents.contains("project_name=my-proj"));
+        assert!(contents.contains("source=quickstart"));
+    }
+
+    #[tokio::test]
+    async fn write_project_ini_with_custom_template() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_project_ini(tmp.path(), "proj-2", "other", "multi-worker-orchestration")
+            .await
+            .unwrap();
+        let contents =
+            std::fs::read_to_string(tmp.path().join(".iii").join("project.ini")).unwrap();
+        assert!(contents.contains("source=multi-worker-orchestration"));
     }
 
     #[test]

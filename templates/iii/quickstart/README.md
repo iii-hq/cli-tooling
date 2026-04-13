@@ -6,10 +6,12 @@ For a detailed walkthrough follow the [Quickstart tutorial](https://iii.dev/docs
 
 ## What's Inside
 
-| Worker          | Language   | Function                | Does                                     |
-| --------------- | ---------- | ----------------------- | ---------------------------------------- |
-| `math-worker`   | Python     | `math::add`             | Returns `{ c: a + b }`                   |
-| `caller-worker` | TypeScript | `math::add_two_numbers` | Calls `math::add` and returns the result |
+| Worker          | Language   | Function                   | Does                                                |
+| --------------- | ---------- | -------------------------- | --------------------------------------------------- |
+| `math-worker`   | Python     | `math::add`                | Returns `{ c: a + b }` (+ running total with state) |
+| `caller-worker` | TypeScript | `math::add_two_numbers`    | Calls `math::add` and returns the result            |
+| `iii-state`     | Built-in   | `state::get`, `state::set` | Persistent key-value store                          |
+| `iii-http`      | Built-in   | —                          | Exposes functions as REST endpoints on `:3111`      |
 
 ## Quick Start
 
@@ -49,6 +51,60 @@ iii trigger --function-id='math::add_two_numbers' --payload='{"a": 10, "b": 20}'
 
 ```json
 { "c": 30 }
+```
+
+### 4. Add state (uncomment code in `math_worker.py`)
+
+```bash
+iii worker add iii-state
+```
+
+Uncomment the state block in `workers/math-worker/math_worker.py` and restart the worker:
+
+```bash
+iii worker stop math-worker
+iii worker start math-worker
+```
+
+Then call:
+
+```bash
+iii trigger --function-id='math::add' --payload='{"a": 2, "b": 3}'
+```
+
+```json
+{ "c": 5, "running_total": 5 }
+```
+
+```bash
+iii trigger --function-id='math::add' --payload='{"a": 10, "b": 20}'
+```
+
+```json
+{ "c": 30, "running_total": 35 }
+```
+
+### 5. Add HTTP endpoints (uncomment code in `worker.ts`)
+
+```bash
+iii worker add iii-http
+```
+
+Uncomment the trigger registrations in `workers/caller-worker/src/worker.ts` and restart the worker:
+
+```bash
+iii worker stop caller-worker
+iii worker start caller-worker
+```
+
+Then:
+
+```bash
+curl -X POST http://localhost:3111/math/add -H 'Content-Type: application/json' -d '{"a": 4, "b": 6}'
+```
+
+```json
+{ "c": 10, "running_total": 45 }
 ```
 
 ## Architecture
