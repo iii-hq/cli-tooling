@@ -3,6 +3,11 @@
 use anyhow::Result;
 use semver::Version;
 
+/// Strip pre-release so "0.11.0-next.8" compares as "0.11.0".
+fn base_version(v: &Version) -> Version {
+    Version::new(v.major, v.minor, v.patch)
+}
+
 /// Compare CLI version against template version
 /// Returns a warning message if the CLI is older than the template expects
 pub fn check_compatibility(
@@ -20,7 +25,7 @@ pub fn check_compatibility(
         Err(_) => return None, // Can't compare, skip warning
     };
 
-    if cli_ver < template_ver {
+    if base_version(&cli_ver) < base_version(&template_ver) {
         Some(format!(
             "Warning: This template was designed for CLI version {} or newer.\n\
              You are running version {}.\n\
@@ -61,7 +66,7 @@ pub fn validate_iii_version(
         format!("Invalid min_iii_version in template.yaml: {}", min_version)
     })?;
 
-    if installed < required {
+    if base_version(&installed) < base_version(&required) {
         Err(format!(
             "This template requires iii >= {}, but you have {}.\n\
              Please update: iii update",
@@ -190,5 +195,35 @@ mod tests {
         let result = validate_iii_version("garbage", "0.11.0");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Could not parse"));
+    }
+
+    #[test]
+    fn test_validate_prerelease_satisfies_same_version() {
+        let result = validate_iii_version("iii 0.11.0-next.8", "0.11.0");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_prerelease_satisfies_older_version() {
+        let result = validate_iii_version("iii 0.12.0-next.1", "0.11.0");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_prerelease_fails_when_truly_old() {
+        let result = validate_iii_version("iii 0.10.0-next.5", "0.11.0");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_compatibility_prerelease_no_warning() {
+        let warning = check_compatibility("0.11.0-next.8", "0.11.0", "iii update");
+        assert!(warning.is_none());
+    }
+
+    #[test]
+    fn test_compatibility_prerelease_older_warns() {
+        let warning = check_compatibility("0.10.0-next.3", "0.11.0", "iii update");
+        assert!(warning.is_some());
     }
 }
