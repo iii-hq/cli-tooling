@@ -559,10 +559,10 @@ async fn create_project(
     let created_handle = telemetry::spawn_project_event(
         "project_created",
         platform,
-        tools_version.clone(),
+        tools_version,
         serde_json::json!({
-            "project_id": project_id.clone(),
-            "project_name": project_name.clone(),
+            "project_id": project_id,
+            "project_name": project_name,
             "template": template_name,
             "product": product_name,
         }),
@@ -584,25 +584,10 @@ async fn create_project(
         }
     }
 
-    let initialized_handle = telemetry::spawn_project_event(
-        "project_initialized",
-        platform,
-        tools_version,
-        serde_json::json!({
-            "project_id": project_id,
-            "project_name": project_name,
-            "template": template_name,
-            "product": product_name,
-        }),
-    );
-
     // Best-effort flush: wait up to 2s for telemetry to complete, then move on
-    let flush = async {
-        for handle in [created_handle, initialized_handle].into_iter().flatten() {
-            let _ = handle.await;
-        }
-    };
-    let _ = tokio::time::timeout(std::time::Duration::from_secs(2), flush).await;
+    if let Some(handle) = created_handle {
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(2), handle).await;
+    }
 
     Ok(())
 }
