@@ -97,7 +97,7 @@ iii worker start caller-worker
 Then:
 
 ```bash
-curl -X POST http://localhost:3111/math/add -H 'Content-Type: application/json' -d '{"a": 4, "b": 6}'
+curl -X POST http://localhost:3111/math/add-two-numbers -H 'Content-Type: application/json' -d '{"a": 4, "b": 6}'
 ```
 
 ```json

@@ -2,10 +2,9 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use scaffolder_core::runtime::Language;
 use scaffolder_core::tui::CreateArgs;
 use scaffolder_core::ProductConfig;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// CLI version
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -45,21 +44,6 @@ impl ProductConfig for IiiConfig {
 
     fn upgrade_command(&self) -> &'static str {
         "cargo install iii-tools --force"
-    }
-
-    fn next_steps(&self, dir: &Path, _langs: &[Language]) -> Vec<String> {
-        let mut steps = Vec::new();
-        let current = std::env::current_dir().ok();
-
-        // Step 1: cd to directory if not current
-        if current.as_ref() != Some(&dir.to_path_buf()) {
-            steps.push(format!("cd {}", dir.display()));
-        }
-
-        // Step 2: Open README for instructions
-        steps.push("Open README.md to get started".to_string());
-
-        steps
     }
 }
 

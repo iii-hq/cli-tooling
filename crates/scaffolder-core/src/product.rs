@@ -3,9 +3,6 @@
 //! This trait defines the interface that each product (motia, iii) must implement
 //! to configure the scaffolding behavior for their specific needs.
 
-use crate::runtime::check::Language;
-use std::path::Path;
-
 /// Configuration trait for different CLI products
 ///
 /// Each product (motia, iii) implements this trait to define:
@@ -13,7 +10,6 @@ use std::path::Path;
 /// - Template source URLs
 /// - Tool dependencies
 /// - Documentation links
-/// - Post-setup instructions
 pub trait ProductConfig: Clone + Send + Sync + 'static {
     /// Internal product name (used for CLI command, env vars)
     fn name(&self) -> &'static str;
@@ -32,9 +28,6 @@ pub trait ProductConfig: Clone + Send + Sync + 'static {
 
     /// URL for product documentation
     fn docs_url(&self) -> &'static str;
-
-    /// Generate the "next steps" instructions after project creation
-    fn next_steps(&self, dir: &Path, langs: &[Language]) -> Vec<String>;
 
     /// CLI description shown in help text
     fn cli_description(&self) -> &'static str;

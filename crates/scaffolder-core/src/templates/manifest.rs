@@ -169,6 +169,10 @@ pub struct TemplateManifest {
     /// Template-specific language file overrides (merged with root)
     #[serde(default)]
     pub language_files: LanguageFiles,
+
+    /// Post-creation steps shown to the user (after the auto-generated `cd` step)
+    #[serde(default)]
+    pub next_steps: Vec<String>,
 }
 
 impl TemplateManifest {
@@ -194,5 +198,49 @@ impl TemplateManifest {
         } else {
             Vec::new()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn minimal_manifest_yaml(next_steps: Option<&str>) -> String {
+        let mut yaml = String::from(
+            "name: Test\ndescription: A test template\nversion: '0.1.0'\nfiles:\n  - README.md\n",
+        );
+        if let Some(steps) = next_steps {
+            yaml.push_str(steps);
+        }
+        yaml
+    }
+
+    #[test]
+    fn next_steps_defaults_to_empty_when_absent() {
+        let manifest: TemplateManifest =
+            serde_yaml::from_str(&minimal_manifest_yaml(None)).unwrap();
+        assert!(manifest.next_steps.is_empty());
+    }
+
+    #[test]
+    fn next_steps_parses_from_yaml() {
+        let manifest: TemplateManifest = serde_yaml::from_str(&minimal_manifest_yaml(Some(
+            "next_steps:\n  - Continue with the quickstart at https://iii.dev/docs/quickstart\n",
+        )))
+        .unwrap();
+        assert_eq!(manifest.next_steps.len(), 1);
+        assert_eq!(
+            manifest.next_steps[0],
+            "Continue with the quickstart at https://iii.dev/docs/quickstart"
+        );
+    }
+
+    #[test]
+    fn next_steps_parses_multiple_entries() {
+        let manifest: TemplateManifest = serde_yaml::from_str(&minimal_manifest_yaml(Some(
+            "next_steps:\n  - Step one\n  - Step two\n  - Step three\n",
+        )))
+        .unwrap();
+        assert_eq!(manifest.next_steps, vec!["Step one", "Step two", "Step three"]);
     }
 }

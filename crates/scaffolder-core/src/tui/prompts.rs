@@ -109,7 +109,7 @@ pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &s
     .await?;
 
     // Step 8: Show next steps
-    print_next_steps(config, &project_dir, &selected_languages)?;
+    print_next_steps(&project_dir, &manifest)?;
 
     Ok(())
 }
@@ -594,19 +594,28 @@ async fn create_project(
     Ok(())
 }
 
-fn print_next_steps<C: ProductConfig>(
-    config: &C,
+fn print_next_steps(
     project_dir: &PathBuf,
-    languages: &[check::Language],
+    manifest: &crate::templates::manifest::TemplateManifest,
 ) -> Result<()> {
-    let steps = config.next_steps(project_dir, languages);
+    let mut steps: Vec<String> = Vec::new();
 
-    println!();
-    println!("  Next steps");
-    println!();
+    if let Some(current) = std::env::current_dir().ok() {
+        if current != *project_dir {
+            steps.push(format!("cd {}", project_dir.display()));
+        }
+    }
 
-    for (i, step) in steps.iter().enumerate() {
-        println!("  {}.  {}", i + 1, step);
+    steps.extend(manifest.next_steps.iter().cloned());
+
+    if !steps.is_empty() {
+        println!();
+        println!("  Next steps");
+        println!();
+
+        for (i, step) in steps.iter().enumerate() {
+            println!("  {}.  {}", i + 1, step);
+        }
     }
 
     cliclack::outro("Happy coding!")?;

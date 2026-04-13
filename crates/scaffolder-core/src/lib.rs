@@ -20,8 +20,6 @@
 //!
 //! ```rust,no_run
 //! use scaffolder_core::{ProductConfig, TemplateFetcher};
-//! use std::path::Path;
-//! use scaffolder_core::runtime::check::Language;
 //!
 //! #[derive(Clone)]
 //! struct MyConfig;
@@ -33,9 +31,6 @@
 //!     fn template_url_env(&self) -> &'static str { "MYAPP_TEMPLATE_URL" }
 //!     fn requires_iii(&self) -> bool { true }
 //!     fn docs_url(&self) -> &'static str { "https://example.com/docs" }
-//!     fn next_steps(&self, _dir: &Path, _langs: &[Language]) -> Vec<String> {
-//!         vec!["Run the app".into()]
-//!     }
 //!     fn cli_description(&self) -> &'static str { "My scaffolder" }
 //!     fn upgrade_command(&self) -> &'static str { "cargo install myapp" }
 //! }
