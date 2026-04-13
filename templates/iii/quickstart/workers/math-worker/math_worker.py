@@ -9,7 +9,6 @@ logger = Logger()
 
 
 def add_handler(payload: dict) -> dict:
-    payload = payload.get("body", payload)  # Handle http messages
     a = payload.get("a", 0)
     b = payload.get("b", 0)
     logger.info(f"math::add called in Python with a={a}, b={b}")

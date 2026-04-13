@@ -22,9 +22,20 @@ iii.registerFunction(
 );
 
 // --- Uncomment after: iii worker add iii-http ---
+// iii.registerFunction(
+//   'http::add_two_numbers',
+//   async (payload: { body: { a: number; b: number } }) => {
+//     const result = await iii.trigger({
+//       function_id: 'math::add_two_numbers',
+//       payload: payload.body,
+//     });
+//     return { status_code: 200, body: result, headers: { 'Content-Type': 'application/json' } };
+//   },
+// );
+//
 // iii.registerTrigger({
 //   type: 'http',
-//   function_id: 'math::add_two_numbers',
+//   function_id: 'http::add_two_numbers',
 //   config: { api_path: '/math/add-two-numbers', http_method: 'POST' },
 // });
 
