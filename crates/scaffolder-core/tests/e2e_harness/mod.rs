@@ -177,13 +177,7 @@ impl Scenario {
             let wm = Self::read_worker_manifest(&abs_dir);
             let Some(wm) = wm else { continue };
 
-            let lang = wm
-                .runtime
-                .as_ref()
-                .and_then(|r| r.language.as_deref())
-                .unwrap_or("typescript");
-
-            self.install_worker(lang, &abs_dir).await;
+            self.install_worker(&wm, &abs_dir).await;
             self.spawn_worker(&wm, &abs_dir).await;
         }
     }
@@ -194,13 +188,7 @@ impl Scenario {
         let wm = Self::read_worker_manifest(&abs_dir)
             .unwrap_or_else(|| panic!("no iii.worker.yaml in {}", abs_dir.display()));
 
-        let lang = wm
-            .runtime
-            .as_ref()
-            .and_then(|r| r.language.as_deref())
-            .unwrap_or("typescript");
-
-        self.install_worker(lang, &abs_dir).await;
+        self.install_worker(&wm, &abs_dir).await;
         self.spawn_worker(&wm, &abs_dir).await;
     }
 
@@ -217,7 +205,28 @@ impl Scenario {
         )
     }
 
-    async fn install_worker(&self, lang: &str, dir: &Path) {
+    async fn install_worker(&self, wm: &WorkerManifest, dir: &Path) {
+        // Prefer explicit scripts.install from the worker manifest
+        let custom_install = wm
+            .scripts
+            .as_ref()
+            .and_then(|s| s.install.as_deref())
+            .filter(|s| !s.is_empty());
+
+        if let Some(install_cmd) = custom_install {
+            let shell = if cfg!(windows) { "cmd" } else { "sh" };
+            let flag = if cfg!(windows) { "/C" } else { "-c" };
+            run_cmd(shell, &[flag, install_cmd], dir).await;
+            return;
+        }
+
+        // Fall back to language-specific install
+        let lang = wm
+            .runtime
+            .as_ref()
+            .and_then(|r| r.language.as_deref())
+            .unwrap_or("typescript");
+
         match lang {
             "typescript" | "javascript" => {
                 if let Some(sdk_path) = local_node_sdk() {
@@ -462,6 +471,9 @@ impl Drop for Scenario {
 // Port cleanup — kill anything occupying our default ports before tests start
 // ---------------------------------------------------------------------------
 
+// TODO: Replace kill_port_holder / ensure_ports_free with ephemeral port allocation
+// (bind TcpListener to "127.0.0.1:0") to avoid SIGKILL-ing unrelated local processes.
+
 /// Kill any process listening on the given port. Best-effort, no panic.
 fn kill_port_holder(port: u16) {
     let output = std::process::Command::new("lsof")
@@ -530,6 +542,16 @@ impl ScenarioBuilder {
             .fetch_template_manifest(&self.template_name)
             .await
             .unwrap_or_else(|e| panic!("fetch template '{}': {e}", self.template_name));
+
+        if let Some(min_ver) = &manifest.min_iii_version {
+            if let Err(msg) = scaffolder_core::templates::version::check_iii_engine_version(min_ver)
+            {
+                panic!(
+                    "Template '{}' requires iii >= {}, but: {}",
+                    self.template_name, min_ver, msg
+                );
+            }
+        }
 
         let mut lang_files = root_manifest.language_files.clone();
         lang_files.merge(&manifest.language_files);

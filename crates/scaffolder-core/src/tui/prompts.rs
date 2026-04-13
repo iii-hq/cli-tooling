@@ -71,15 +71,17 @@ pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &s
         ))?;
     }
 
-    // Check iii engine version compatibility (hard block)
-    if let Some(min_ver) = &manifest.min_iii_version {
-        match version::check_iii_engine_version(min_ver) {
-            Ok(installed) => {
-                cliclack::log::success(format!("iii engine {} (>= {} required)", installed, min_ver))?;
-            }
-            Err(msg) => {
-                cliclack::log::error(&msg)?;
-                anyhow::bail!("{}", msg);
+    // Check iii engine version compatibility (hard block, respects --skip-tool-check)
+    if !args.skip_tool_check {
+        if let Some(min_ver) = &manifest.min_iii_version {
+            match version::check_iii_engine_version(min_ver) {
+                Ok(installed) => {
+                    cliclack::log::success(format!("iii engine {} (>= {} required)", installed, min_ver))?;
+                }
+                Err(msg) => {
+                    cliclack::log::error(&msg)?;
+                    anyhow::bail!("{}", msg);
+                }
             }
         }
     }
