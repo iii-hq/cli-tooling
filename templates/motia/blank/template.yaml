@@ -2,6 +2,7 @@
 name: Blank
 description: A blank template useful for starting a new Motia project
 version: "0.1.0"
+min_iii_version: "0.11.0"
 
 # Languages that can optionally be included
 optional:

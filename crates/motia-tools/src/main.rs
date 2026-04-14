@@ -2,10 +2,9 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use scaffolder_core::runtime::Language;
 use scaffolder_core::tui::CreateArgs;
 use scaffolder_core::ProductConfig;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// CLI version
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -45,47 +44,6 @@ impl ProductConfig for MotiaConfig {
 
     fn upgrade_command(&self) -> &'static str {
         "cargo install motia-tools --force"
-    }
-
-    fn next_steps(&self, dir: &Path, langs: &[Language]) -> Vec<String> {
-        let mut steps = Vec::new();
-        let current = std::env::current_dir().ok();
-
-        let has_js_ts = langs
-            .iter()
-            .any(|l| matches!(l, Language::TypeScript | Language::JavaScript));
-        let has_python = langs.contains(&Language::Python);
-
-        // Step 1: Run iii
-        steps.push("iii -c iii.config.yaml".to_string());
-
-        // Step 2: cd to directory if not current
-        if current.as_ref() != Some(&dir.to_path_buf()) {
-            steps.push(format!("cd {}", dir.display()));
-        }
-
-        // Step 3: Install Node dependencies
-        if has_js_ts {
-            steps.push("npm install @iii-dev/motia".to_string());
-        }
-
-        // Step 4: Set up Python environment
-        if has_python {
-            steps.push(
-                "Set up Python environment:\n\
-                      uv venv && uv pip install -r requirements.txt\n\
-                      -- or --\n\
-                      python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
-                    .to_string(),
-            );
-        }
-
-        // Step 5: Start dev server
-        if has_js_ts {
-            steps.push("npm dev".to_string());
-        }
-
-        steps
     }
 }
 

@@ -38,3 +38,4 @@ url = { workspace = true }
 wiremock = { workspace = true }
 tokio = { workspace = true, features = ["full", "macros"] }
 tempfile = { workspace = true }
+libc = "0.2"

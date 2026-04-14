@@ -61,7 +61,7 @@ pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &s
     let (template_name, manifest, language_files) =
         select_template(&mut fetcher, args.template.as_deref()).await?;
 
-    // Check version compatibility
+    // Check version compatibility (CLI tools version — advisory)
     if let Some(warning) =
         version::check_compatibility(cli_version, &manifest.version, config.upgrade_command())
     {
@@ -69,6 +69,21 @@ pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &s
             "Version warning: {}",
             warning.lines().next().unwrap_or(&warning)
         ))?;
+    }
+
+    // Check iii engine version compatibility (hard block, respects --skip-tool-check)
+    if !args.skip_tool_check {
+        if let Some(min_ver) = &manifest.min_iii_version {
+            match version::check_iii_engine_version(min_ver) {
+                Ok(installed) => {
+                    cliclack::log::success(format!("iii engine {} (>= {} required)", installed, min_ver))?;
+                }
+                Err(msg) => {
+                    cliclack::log::error(&msg)?;
+                    anyhow::bail!("{}", msg);
+                }
+            }
+        }
     }
 
     // Step 4: Select directory
@@ -94,7 +109,7 @@ pub async fn run<C: ProductConfig>(config: &C, args: CreateArgs, cli_version: &s
     .await?;
 
     // Step 8: Show next steps
-    print_next_steps(config, &project_dir, &selected_languages)?;
+    print_next_steps(&project_dir, &manifest)?;
 
     Ok(())
 }
@@ -539,17 +554,17 @@ async fn create_project(
         .unwrap_or("unknown")
         .to_string();
 
-    telemetry::write_project_ini(project_dir, &project_id, &project_name).await?;
+    telemetry::write_project_ini(project_dir, &project_id, &project_name, template_name).await?;
 
     let platform = telemetry::platform_for_product(product_name);
     let tools_version = cli_version.to_string();
     let created_handle = telemetry::spawn_project_event(
         "project_created",
         platform,
-        tools_version.clone(),
+        tools_version,
         serde_json::json!({
-            "project_id": project_id.clone(),
-            "project_name": project_name.clone(),
+            "project_id": project_id,
+            "project_name": project_name,
             "template": template_name,
             "product": product_name,
         }),
@@ -571,42 +586,36 @@ async fn create_project(
         }
     }
 
-    let initialized_handle = telemetry::spawn_project_event(
-        "project_initialized",
-        platform,
-        tools_version,
-        serde_json::json!({
-            "project_id": project_id,
-            "project_name": project_name,
-            "template": template_name,
-            "product": product_name,
-        }),
-    );
-
     // Best-effort flush: wait up to 2s for telemetry to complete, then move on
-    let flush = async {
-        for handle in [created_handle, initialized_handle].into_iter().flatten() {
-            let _ = handle.await;
-        }
-    };
-    let _ = tokio::time::timeout(std::time::Duration::from_secs(2), flush).await;
+    if let Some(handle) = created_handle {
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(2), handle).await;
+    }
 
     Ok(())
 }
 
-fn print_next_steps<C: ProductConfig>(
-    config: &C,
+fn print_next_steps(
     project_dir: &PathBuf,
-    languages: &[check::Language],
+    manifest: &crate::templates::manifest::TemplateManifest,
 ) -> Result<()> {
-    let steps = config.next_steps(project_dir, languages);
+    let mut steps: Vec<String> = Vec::new();
 
-    println!();
-    println!("  Next steps");
-    println!();
+    if let Some(current) = std::env::current_dir().ok() {
+        if current != *project_dir {
+            steps.push(format!("cd {}", project_dir.display()));
+        }
+    }
 
-    for (i, step) in steps.iter().enumerate() {
-        println!("  {}.  {}", i + 1, step);
+    steps.extend(manifest.next_steps.iter().cloned());
+
+    if !steps.is_empty() {
+        println!();
+        println!("  Next steps");
+        println!();
+
+        for (i, step) in steps.iter().enumerate() {
+            println!("  {}.  {}", i + 1, step);
+        }
     }
 
     cliclack::outro("Happy coding!")?;

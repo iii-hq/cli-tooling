@@ -989,7 +989,7 @@ dependencies = [
 
 [[package]]
 name = "iii-tools"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1232,7 +1232,7 @@ dependencies = [
 
 [[package]]
 name = "motia-tools"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1758,7 +1758,7 @@ dependencies = [
 
 [[package]]
 name = "scaffolder-core"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1767,6 +1767,7 @@ dependencies = [
  "console 0.16.2",
  "ctrlc",
  "dirs",
+ "libc",
  "open",
  "reqwest",
  "semver",

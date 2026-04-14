@@ -18,20 +18,24 @@
 //!
 //! # Example Usage (without TUI)
 //!
-//! ```ignore
-//! use scaffolder_core::{ProductConfig, templates, runtime};
+//! ```rust,no_run
+//! use scaffolder_core::{ProductConfig, TemplateFetcher};
 //!
-//! // Define your product config
 //! #[derive(Clone)]
 //! struct MyConfig;
+//!
 //! impl ProductConfig for MyConfig {
 //!     fn name(&self) -> &'static str { "myapp" }
-//!     // ... implement other methods
+//!     fn display_name(&self) -> &'static str { "My App" }
+//!     fn default_template_url(&self) -> &'static str { "https://example.com/templates" }
+//!     fn template_url_env(&self) -> &'static str { "MYAPP_TEMPLATE_URL" }
+//!     fn requires_iii(&self) -> bool { true }
+//!     fn docs_url(&self) -> &'static str { "https://example.com/docs" }
+//!     fn cli_description(&self) -> &'static str { "My scaffolder" }
+//!     fn upgrade_command(&self) -> &'static str { "cargo install myapp" }
 //! }
 //!
-//! // Use the low-level APIs
-//! let fetcher = templates::TemplateFetcher::from_config(&MyConfig)?;
-//! let manifest = fetcher.fetch_root_manifest().await?;
+//! let fetcher = TemplateFetcher::from_config(&MyConfig).unwrap();
 //! ```
 
 pub mod config;

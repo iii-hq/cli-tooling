@@ -1,32 +1,24 @@
-name: Quickstart
-description: Learn the iii basics while orchestrating workers
-version: "0.1.0"
+name: Quickstart (Cross-Language Math)
+description: Call a Python function from a Node worker using iii trigger
+version: '0.1.0'
+min_iii_version: '0.11.0'
 
-# Shown as "Included", always selected (not deselectable); runtime checks advisory
 treat_required_as_included: true
 requires:
   - python
-  - rust
   - typescript
 optional: []
 
 # Explicit list of files to copy (shared_files from root are added automatically)
 files:
   - README.md
-  - iii-config.yaml
-  - workers/client/package.json
-  - workers/client/tsconfig.json
-  - workers/client/src/worker.ts
-  - workers/data-worker/requirements.txt
-  - workers/data-worker/data_worker.py
-  - workers/compute-worker/Cargo.toml
-  - workers/compute-worker/src/main.rs
-  - workers/payment-worker/package.json
-  - workers/payment-worker/tsconfig.json
-  - workers/payment-worker/src/external-worker.ts
-  - docker-compose.yaml
-  - workers/client/Dockerfile
-  - workers/compute-worker/Dockerfile
-  - workers/compute-worker/.dockerignore
-  - workers/data-worker/Dockerfile
-  - workers/payment-worker/Dockerfile
+  - workers/math-worker/iii.worker.yaml
+  - workers/math-worker/requirements.txt
+  - workers/math-worker/math_worker.py
+  - workers/caller-worker/package.json
+  - workers/caller-worker/tsconfig.json
+  - workers/caller-worker/iii.worker.yaml
+  - workers/caller-worker/src/worker.ts
+
+next_steps:
+  - 'Continue with the quickstart at: https://iii.dev/docs/quickstart'
