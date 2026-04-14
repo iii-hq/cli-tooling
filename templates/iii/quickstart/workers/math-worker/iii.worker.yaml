@@ -5,4 +5,4 @@ runtime:
   entry: math_worker.py
 scripts:
   install: "pip install -r requirements.txt"
-  start: "python math_worker.py"
+  start: "watchfiles 'python math_worker.py'"
