@@ -1,6 +1,7 @@
 name: Build Template Zips
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - "templates/**"
