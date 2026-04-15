@@ -29,8 +29,8 @@ jobs:
       - name: Build iii CLI
         run: cargo build --release -p iii-tools
 
-      - name: Build motia template zips
-        run: ./target/release/motia-tools build-zips --template-dir=./templates/motia
+      # - name: Build motia template zips
+      #   run: ./target/release/motia-tools build-zips --template-dir=./templates/motia
 
       - name: Build iii template zips
         run: ./target/release/iii-tools build-zips --template-dir=./templates/iii
